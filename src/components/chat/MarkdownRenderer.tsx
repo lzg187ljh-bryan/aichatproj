@@ -50,6 +50,9 @@ export function MarkdownRenderer({ message, onBookmarkToggle, isBookmarked }: Ma
   const workerRef = useRef<Worker | null>(null);
   const messageIdRef = useRef(message.id);
   const contentRef = useRef<HTMLDivElement>(null);
+  // 使用 ref 存储最新消息，避免闭包问题
+  const messageRef = useRef(message);
+  messageRef.current = message;
 
   // 复制代码到剪贴板
   const handleCopy = useCallback((index: number, code: string) => {
@@ -96,7 +99,7 @@ export function MarkdownRenderer({ message, onBookmarkToggle, isBookmarked }: Ma
     });
   }, []);
 
-  // 初始化 Worker
+  // 初始化 Worker - 只在组件挂载时创建一次
   useEffect(() => {
     workerRef.current = new Worker(
       new URL('@/workers/markdownWorker.ts', import.meta.url),
@@ -108,11 +111,12 @@ export function MarkdownRenderer({ message, onBookmarkToggle, isBookmarked }: Ma
       
       const { id, html: workerHtml, error } = e.data;
       
+      // 使用 ref 比较，避免闭包陷阱
       if (id === messageIdRef.current) {
         setIsLoading(false);
         if (error) {
           console.error('Markdown parse error:', error);
-          setHtml(`<pre>${message.content}</pre>`);
+          setHtml(`<pre>${messageRef.current.content}</pre>`);
         } else {
           const sanitized = DOMPurify.sanitize(workerHtml, {
             ALLOWED_TAGS: [
@@ -132,10 +136,12 @@ export function MarkdownRenderer({ message, onBookmarkToggle, isBookmarked }: Ma
       }
     };
 
+    // 清理：组件卸载时终止 Worker，防止内存泄漏
     return () => {
       workerRef.current?.terminate();
+      workerRef.current = null;
     };
-  }, [message.content]);
+  }, []);  // 空依赖 - 只在挂载时执行一次
 
   // 当 HTML 更新后应用语法高亮
   useEffect(() => {
