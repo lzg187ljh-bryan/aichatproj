@@ -466,6 +466,128 @@ interface ChatState {
 
 ---
 
+## Phase 6: 生产级工程化、首屏交付与基建运维
+
+### 1. RSC 架构与组件分离
+
+严格界定 Server Components 与 Client Components：
+
+- **ChatLayout** - 服务端组件，仅渲染静态 HTML 外壳
+- **ChatLayoutClient** - 客户端组件，处理交互逻辑 (侧边栏切换)
+- **MessageItem** - 客户端组件，使用 `dynamic()` 懒加载 MarkdownRenderer
+
+```typescript
+// src/components/layout/ChatLayout.tsx (Server Component)
+
+export function ChatLayout({ children }: ChatLayoutProps) {
+  return (
+    <main>
+      <Suspense fallback={<SidebarSkeleton />}>
+        <ChatLayoutClient sidebarType="sidebar" />
+      </Suspense>
+      {/* ... */}
+    </main>
+  );
+}
+```
+
+### 2. Suspense 流式渲染
+
+使用 `<Suspense>` 包裹需要异步加载的组件：
+
+- **SidebarSkeleton** - 侧边栏骨架屏
+- **ChatSkeleton** - 聊天区域骨架屏
+
+```typescript
+// src/app/chat/page.tsx
+
+<Suspense fallback={<SidebarSkeleton />}>
+  <Sidebar />
+</Suspense>
+
+<Suspense fallback={<ChatSkeleton />}>
+  <ChatContainer />
+</Suspense>
+```
+
+### 3. 动态导入 (Code Splitting)
+
+重型依赖使用 `dynamic()` 懒加载：
+
+```typescript
+// src/components/chat/MessageItem.tsx
+
+const MarkdownRenderer = dynamic(
+  () => import('./MarkdownRenderer').then(mod => ({ default: mod.MarkdownRenderer })),
+  { 
+    ssr: false,
+    loading: () => <div className="animate-pulse h-4 bg-muted/30 rounded w-3/4"></div>
+  }
+);
+```
+
+- marked、DOMPurify、Prism.js 仅在 AI 输出内容时才加载
+- 首屏 JS Bundle 大幅减少
+
+### 4. 静态资源与字体优化
+
+```typescript
+// src/app/layout.tsx
+
+import { Geist, Geist_Mono } from "next/font/google";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+```
+
+- 使用 `next/font/google` 预加载字体
+- 防止 FOUT/FOIT (字体闪烁)
+- 自动优化字体加载
+
+### 5. next.config.ts 优化配置
+
+```typescript
+// next.config.ts
+
+const nextConfig: NextConfig = {
+  productionBrowserSourceMaps: false,
+  compress: true,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  experimental: {
+    optimizePackageImports: ['prismjs', 'marked', 'dompurify'],
+  },
+};
+```
+
+### 6. DevOps 质量防线 (Git Hooks)
+
+配置 Husky + lint-staged：
+
+```bash
+# .husky/pre-commit
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+npx lint-staged
+```
+
+```json
+// package.json
+{
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{css,scss,md,json}": ["prettier --write"]
+  }
+}
+```
+
+每次 `git commit` 自动执行 ESLint 检查和 Prettier 格式化。
+
+---
+
 ## 运行项目
 
 ```bash
@@ -492,10 +614,14 @@ npm run build
 | **图形学能力** | Canvas 粒子系统 + 连接线网络 + 波纹动画 + 鼠标交互 |
 | **真实模拟** | TTFT + 流式吐字 + AbortController |
 | **性能优化** | 双缓冲 + RAF 批量 + Web Worker |
+| **RSC 架构** | Server/Client 组件分离 + Suspense 流式渲染 |
+| **代码分割** | dynamic() 懒加载 marked/prism/dompurify |
 | **状态联动** | AI 状态与 Canvas 动画实时同步 |
 | **会话管理** | localStorage 持久化 + CRUD 操作 |
 | **代码高亮** | Prism.js 12+ 语言 + 一键复制 |
 | **错误处理** | Error Boundary + 友好提示 |
+| **字体优化** | next/font/google 预加载 |
+| **DevOps** | Husky + lint-staged Git Hooks |
 
 ---
 
