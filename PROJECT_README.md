@@ -1,10 +1,10 @@
 # AI Chat React - 产业级全栈 AI 对话应用
 
-> 基于 Next.js 14+ App Router + TypeScript + Zustand + Canvas API 的产业级 AI 聊天应用
+> 基于 Next.js 14+ App Router + TypeScript + Zustand + Canvas API + WebGL 的产业级 AI 聊天应用
 
 ## 项目概述
 
-本项目是一个具有产业级标准的 Web 端 AI 聊天应用，包含完整的架构分层、SEO 优化、性能调优，以及 Canvas 图形学技术。
+本项目是一个具有产业级标准的 Web 端 AI 聊天应用，包含完整的架构分层、SEO 优化、性能调优、Canvas/WebGL 图形学技术。
 
 **技术栈：**
 - Next.js 14+ (App Router)
@@ -12,9 +12,12 @@
 - Tailwind CSS
 - Zustand (状态管理)
 - marked + DOMPurify (安全富文本)
-- 原生 HTML5 Canvas
+- 原生 HTML5 Canvas (粒子动画)
+- WebGL (知识图谱)
 - Web Worker
 - Prism.js (语法高亮)
+- SSE (Server-Sent Events)
+- PWA (渐进式 Web 应用)
 
 ---
 
@@ -31,54 +34,67 @@ ai-chat-react/
 │   │
 │   ├── services/                       # 服务层
 │   │   ├── AIProviderFactory.ts        # Provider 工厂
-│   │   └── mock/
-│   │       └── MockAIAdapter.ts        # Mock 流式服务引擎
+│   │   ├── mock/
+│   │   │   └── MockAIAdapter.ts        # Mock 流式服务引擎
+│   │   └── sse/
+│   │       └── SSEAIAdapter.ts         # SSE 流式适配器
 │   │
 │   ├── store/                          # Zustand 状态管理
 │   │   ├── chatStore.ts               # 聊天消息状态
 │   │   ├── aiStatusStore.ts           # AI 状态机 (idle/thinking/typing)
-│   │   ├── sessionStore.ts            # 会话管理 (localStorage 持久化)
-│   │   └── bookmarkStore.ts           # 收藏夹 (localStorage 持久化)
+│   │   ├── sessionStore.ts             # 会话管理 (localStorage 持久化)
+│   │   └── bookmarkStore.ts            # 收藏夹 (localStorage 持久化)
 │   │
 │   ├── components/                     # React 组件
 │   │   ├── layout/
 │   │   │   ├── ChatLayout.tsx         # 语义化布局 + 侧边栏集成
-│   │   │   └── Sidebar.tsx            # 会话列表侧边栏
+│   │   │   └── Sidebar.tsx             # 会话列表侧边栏
 │   │   ├── chat/
-│   │   │   ├── ChatContainer.tsx      # 聊天容器
-│   │   │   ├── MessageList.tsx       # 消息列表
-│   │   │   ├── MessageItem.tsx       # 单条消息渲染 (Worker + Prism 高亮 + 收藏)
-│   │   │   └── InputArea.tsx         # 自适应高度输入框
+│   │   │   ├── ChatContainer.tsx       # 聊天容器
+│   │   │   ├── MessageList.tsx         # 消息列表
+│   │   │   ├── MessageItem.tsx         # 单条消息渲染
+│   │   │   ├── MarkdownRenderer.tsx    # Markdown 渲染器
+│   │   │   └── InputArea.tsx          # 自适应高度输入框
 │   │   ├── visual/
-│   │   │   └── AIAuraVisualizer.tsx  # Canvas AI 光环可视化 (增强版)
+│   │   │   ├── AIAuraVisualizer.tsx   # Canvas 2D 粒子动画
+│   │   │   └── KnowledgeGraphVisualizer.tsx # WebGL 知识图谱
 │   │   └── ui/
-│   │       └── ErrorBoundary.tsx      # React 错误边界
+│   │       ├── ErrorBoundary.tsx      # React 错误边界
+│   │       ├── ChatSkeleton.tsx       # 聊天骨架屏
+│   │       └── SidebarSkeleton.tsx    # 侧边栏骨架屏
 │   │
 │   ├── workers/                        # Web Worker 线程
-│   │   └── markdownWorker.ts          # Markdown 解析 + 代码块增强
+│   │   └── markdownWorker.ts           # Markdown 解析 + 代码块增强
 │   │
 │   ├── hooks/                          # 自定义 Hooks
 │   │   ├── useChatStream.ts           # 流式数据 + 双缓冲队列 + RAF 批量更新
-│   │   ├── useAutoScroll.ts          # 防冲突自动滚动
-│   │   └── useSessionSync.ts         # 会话消息同步
+│   │   ├── useAutoScroll.ts           # 防冲突自动滚动
+│   │   └── useSessionSync.ts          # 会话消息同步
 │   │
 │   ├── utils/                          # 工具函数
-│   │   └── markdown.ts                # 正则预处理 (补全反引号)
+│   │   └── markdown.ts                 # 正则预处理 (补全反引号)
 │   │
 │   ├── app/                            # Next.js 14+ App Router
-│   │   ├── layout.tsx                 # Root Layout
-│   │   ├── page.tsx                   # 首页 (重定向到 /chat)
+│   │   ├── layout.tsx                 # Root Layout + 字体优化
+│   │   ├── page.tsx                   # 首页 (重定向)
 │   │   ├── chat/
 │   │   │   └── page.tsx               # 聊天页面 + generateMetadata + ErrorBoundary
-│   │   └── globals.css                # 全局样式 + Markdown + Prism 主题
+│   │   ├── api/
+│   │   │   └── chat/
+│   │   │       └── route.ts           # SSE API 路由
+│   │   └── globals.css                 # 全局样式 + Markdown + Prism 主题
 │   │
-│   └── store/                         # (已在上方列出)
+│   └── store/                          # (已在上方列出)
 │
 ├── public/
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+│   └── manifest.json                    # PWA 配置
+│
+├── .husky/                             # Git Hooks
+│   └── pre-commit
+│
+├── next.config.ts                      # Next.js 配置 + PWA
+├── package.json
+└── PROJECT_README.md                   # 本文档
 ```
 
 ---
@@ -611,8 +627,10 @@ npm run build
 |------|----------|
 | **关注点分离** | core → services → store → components → workers |
 | **SEO 友好** | generateMetadata + 语义化 HTML |
-| **图形学能力** | Canvas 粒子系统 + 连接线网络 + 波纹动画 + 鼠标交互 |
+| **Canvas 2D** | 粒子系统 + 连接线网络 + 波纹动画 + 鼠标交互 |
+| **WebGL** | 知识图谱可视化 + GPU 加速粒子渲染 |
 | **真实模拟** | TTFT + 流式吐字 + AbortController |
+| **SSE 流式** | Server-Sent Events 对接真实 AI API |
 | **性能优化** | 双缓冲 + RAF 批量 + Web Worker |
 | **RSC 架构** | Server/Client 组件分离 + Suspense 流式渲染 |
 | **代码分割** | dynamic() 懒加载 marked/prism/dompurify |
@@ -621,7 +639,51 @@ npm run build
 | **代码高亮** | Prism.js 12+ 语言 + 一键复制 |
 | **错误处理** | Error Boundary + 友好提示 |
 | **字体优化** | next/font/google 预加载 |
+| **PWA** | 离线缓存 + 可安装 + Service Worker |
 | **DevOps** | Husky + lint-staged Git Hooks |
+
+---
+
+## 新增功能
+
+### SSE (Server-Sent Events)
+
+```typescript
+// src/services/sse/SSEAIAdapter.ts
+export class SSEAIAdapter implements IAIProvider {
+  sendMessageStream(messages, onChunk, onDone, onError) {
+    // 使用 fetch + ReadableStream 实现流式读取
+    // 支持真实 AI API 对接
+  }
+}
+
+// src/app/api/chat/route.ts
+export async function POST(request) {
+  // SSE 格式: data: { "content": "..." }\n\n
+}
+```
+
+### WebGL 知识图谱
+
+```typescript
+// src/components/visual/KnowledgeGraphVisualizer.tsx
+// 原生 WebGL 实现:
+// - 顶点/片段着色器
+// - GPU 加速粒子渲染
+// - 与 Canvas 2D AIAuraVisualizer 互补
+```
+
+### PWA 支持
+
+```typescript
+// next.config.ts
+import withPWA from '@ducanh2912/next-pwa';
+
+const configWithPWA = withPWA({
+  dest: 'public',
+  register: true,
+})(nextConfig);
+```
 
 ---
 

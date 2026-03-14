@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import withPWA from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
+  // 使用 webpack 而非 Turbopack (PWA 需要)
+  turbopack: {},
+  
   // 生产环境优化
   productionBrowserSourceMaps: false,
   
@@ -23,4 +27,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// PWA 配置 - 基础配置
+const configWithPWA = withPWA({
+  dest: 'public',
+  register: true,
+  disable: process.env.NODE_ENV === 'development',
+})(nextConfig);
+
+export default configWithPWA;

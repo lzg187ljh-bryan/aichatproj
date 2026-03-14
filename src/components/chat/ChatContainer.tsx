@@ -8,6 +8,7 @@
 import { MessageList } from './MessageList';
 import { InputArea } from './InputArea';
 import { AIAuraVisualizer } from '@/components/visual/AIAuraVisualizer';
+import { KnowledgeGraphVisualizer } from '@/components/visual/KnowledgeGraphVisualizer';
 import { useChatStream } from '@/hooks/useChatStream';
 import { useSessionSync } from '@/hooks/useSessionSync';
 
@@ -19,8 +20,11 @@ export function ChatContainer() {
 
   return (
     <div className="relative flex flex-col h-full min-h-[500px]">
-      {/* AI 光环可视化背景 */}
+      {/* Canvas 2D AI 光环可视化 */}
       <AIAuraVisualizer />
+      
+      {/* WebGL 知识图谱可视化 */}
+      <KnowledgeGraphVisualizer />
       
       {/* 消息列表 */}
       <MessageList />
