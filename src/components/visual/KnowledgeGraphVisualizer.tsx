@@ -369,7 +369,8 @@ export function KnowledgeGraphVisualizer() {
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        zIndex: 0,
+        zIndex: 1, // 在 Canvas 2D 之上
+        mixBlendMode: 'screen', // 混合模式，让粒子更明显
       }}
     />
   );
