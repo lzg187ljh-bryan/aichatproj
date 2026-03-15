@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useSessionStore, type Session } from '@/store/sessionStore';
+import { ParticleSphere } from '@/components/visual/ParticleSphere';
 
 interface SidebarProps {
   onSessionSelect?: (sessionId: string) => void;
@@ -69,7 +70,10 @@ export function Sidebar({ onSessionSelect }: SidebarProps) {
     <aside className="w-72 h-full bg-sidebar border-r border-border flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground mb-3">Chats</h2>
+        <div className="flex items-center gap-3 mb-3">
+          <ParticleSphere />
+          <h2 className="text-lg font-semibold text-foreground">Chats</h2>
+        </div>
         
         {/* New Chat Button / Input */}
         {isCreating ? (
