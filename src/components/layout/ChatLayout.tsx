@@ -6,6 +6,7 @@
 
 import { Suspense } from 'react';
 import { ChatLayoutClient } from './ChatLayoutClient';
+import { SidebarWrapper } from './SidebarWrapper';
 import { SidebarSkeleton } from '@/components/ui/SidebarSkeleton';
 import { ChatSkeleton } from '@/components/ui/ChatSkeleton';
 
@@ -18,11 +19,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     <main className="min-h-screen bg-chat-bg">
       <div className="max-w-full mx-auto h-screen flex">
         {/* Sidebar with Suspense */}
-        <div className="w-72 flex-shrink-0">
-          <Suspense fallback={<SidebarSkeleton />}>
-            <ChatLayoutClient sidebarType="sidebar" />
-          </Suspense>
-        </div>
+        <Suspense fallback={<SidebarSkeleton />}>
+          <SidebarWrapper />
+        </Suspense>
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">

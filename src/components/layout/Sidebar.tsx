@@ -10,10 +10,12 @@ import { useSessionStore, type Session } from '@/store/sessionStore';
 import { ParticleSphere } from '@/components/visual/ParticleSphere';
 
 interface SidebarProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
   onSessionSelect?: (sessionId: string) => void;
 }
 
-export function Sidebar({ onSessionSelect }: SidebarProps) {
+export function Sidebar({ isOpen = true, onToggle, onSessionSelect }: SidebarProps) {
   const {
     sessions,
     currentSessionId,
@@ -65,6 +67,11 @@ export function Sidebar({ onSessionSelect }: SidebarProps) {
     switchSession(id);
     onSessionSelect?.(id);
   }, [switchSession, onSessionSelect]);
+
+  // 如果侧边栏关闭，不渲染
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <aside className="w-72 h-full bg-sidebar border-r border-border flex flex-col">

@@ -12,6 +12,8 @@ import { useAIStatusStore, type AIStatus } from '@/store/aiStatusStore';
 
 // Vertex Shader
 const VERTEX_SHADER = `
+  precision mediump float;
+  
   attribute vec3 a_position;
   attribute float a_size;
   attribute float a_alpha;

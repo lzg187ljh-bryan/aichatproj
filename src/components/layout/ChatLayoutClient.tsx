@@ -6,10 +6,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { useSessionStore } from '@/store/sessionStore';
 import { useChatStore } from '@/store/chatStore';
+import { useSidebarStore } from '@/store/sidebarStore';
 
 type ClientType = 'sidebar' | 'toggle';
 
@@ -18,7 +19,7 @@ interface ChatLayoutClientProps {
 }
 
 export function ChatLayoutClient({ sidebarType }: ChatLayoutClientProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isOpen, toggle } = useSidebarStore();
   const { sessions, currentSessionId, getCurrentSession, createSession } = useSessionStore();
   const { setMessages } = useChatStore();
 
@@ -49,19 +50,19 @@ export function ChatLayoutClient({ sidebarType }: ChatLayoutClientProps) {
   };
 
   if (sidebarType === 'sidebar') {
-    return <Sidebar onSessionSelect={handleSessionSelect} />;
+    return <Sidebar isOpen={isOpen} onToggle={toggle} onSessionSelect={handleSessionSelect} />;
   }
 
   // Toggle button
   return (
     <button
-      onClick={() => setSidebarOpen(!sidebarOpen)}
+      onClick={toggle}
       className="p-2 hover:bg-muted rounded-lg transition-colors"
-      title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+      title={isOpen ? 'Hide sidebar' : 'Show sidebar'}
     >
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-              d={sidebarOpen ? "M11 19l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
+              d={isOpen ? "M11 19l-7-7 7-7" : "M13 5l7 7-7 7M5 5l7 7-7 7"} />
       </svg>
     </button>
   );
