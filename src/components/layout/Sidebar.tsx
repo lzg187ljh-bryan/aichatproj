@@ -8,6 +8,7 @@
 import { useState, useCallback } from 'react';
 import { useSessionStore, type Session } from '@/store/sessionStore';
 import { ParticleSphere } from '@/components/visual/ParticleSphere';
+import { LoginButton } from '@/components/auth/LoginButton';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -199,7 +200,8 @@ export function Sidebar({ isOpen = true, onToggle, onSessionSelect }: SidebarPro
 
       {/* Footer */}
       <div className="p-4 border-t border-border">
-        <p className="text-xs text-muted-foreground text-center">
+        <LoginButton />
+        <p className="text-xs text-muted-foreground text-center mt-2">
           {sessions.length} chat{sessions.length !== 1 ? 's' : ''}
         </p>
       </div>
