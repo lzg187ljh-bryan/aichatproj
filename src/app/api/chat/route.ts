@@ -1,6 +1,6 @@
 /**
  * API Route - Chat SSE
- * 使用 DeepSeek AI + Supabase Auth + 数据库持久化
+ * DeepSeek AI / Mock mode + Supabase Auth + Database persistence
  */
 
 import { streamText } from 'ai';
@@ -20,7 +20,10 @@ interface ChatRequestBody {
   newConversationTitle?: string;
 }
 
-// DeepSeek Provider
+// Check if using mock mode
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_AI === 'mock';
+
+// DeepSeek Provider (only used when not mock)
 const deepseekProvider = createOpenAICompatible({
   baseURL: 'https://api.deepseek.com/v1',
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -129,10 +132,25 @@ async function addAssistantMessage(conversationId: string, content: string) {
       conversation_id: conversationId,
       role: 'assistant',
       content,
-      model: 'deepseek-chat',
+      model: USE_MOCK ? 'mock' : 'deepseek-chat',
     });
 
   if (error) throw error;
+}
+
+/**
+ * Generate mock AI response
+ */
+function generateMockResponse(userMessage: string): string {
+  const responses = [
+    `Thanks for your message: "${userMessage.slice(0, 50)}..."\n\nHere's a thoughtful response that demonstrates the AI is working correctly.\n\n## Key Points\n\n- This is a **mock response** from the server\n- It shows the API is working\n- Data is being saved to the database\n\n### Code Example\n\n\`\`\`typescript\nconst result = await streamText({\n  model: deepseekProvider('deepseek-chat'),\n  messages,\n});\n\`\`\`\n\n---\n\n*Mock response generated at ${new Date().toLocaleTimeString()}*`,
+    
+    `I understand you're asking about "${userMessage.slice(0, 30)}..."\n\nThis is a simulated response to demonstrate the chat functionality.\n\n### Features Working\n\n1. ✅ Server-side processing\n2. ✅ Database persistence\n3. ✅ Streaming response\n4. ✅ Authentication\n\n---\n\n*Mock response*`,
+    
+    `Interesting question! Let me provide a helpful response.\n\nBased on your input: "${userMessage.slice(0, 40)}..."\n\n> This demonstrates that both mock and real AI modes route through the same API endpoint.\n\n\`\`\`json\n{\n  "mode": "${USE_MOCK ? 'mock' : 'real'}",\n  "status": "success"\n}\n\`\`\`\n\n---\n\n*Generated at ${new Date().toISOString()}*`,
+  ];
+  
+  return responses[Math.floor(Math.random() * responses.length)];
 }
 
 export async function POST(req: Request) {
@@ -167,7 +185,49 @@ export async function POST(req: Request) {
       })));
     }
 
-    // 调用 AI
+    const userMessage = userMessages[userMessages.length - 1]?.content || '';
+    const conversationIdForAI = convId || '';
+
+    // Mock mode or real AI mode
+    if (USE_MOCK) {
+      const mockResponse = generateMockResponse(userMessage);
+      
+      // Stream mock response
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          const chunks = mockResponse.split('');
+          let index = 0;
+          
+          const interval = setInterval(() => {
+            if (index >= chunks.length) {
+              clearInterval(interval);
+              controller.close();
+              
+              // Save to database after streaming
+              if (conversationIdForAI) {
+                addAssistantMessage(conversationIdForAI, mockResponse).catch(console.error);
+              }
+              return;
+            }
+            
+            controller.enqueue(encoder.encode(chunks[index]));
+            index++;
+          }, 20); // 20ms per character
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Conversation-Id': conversationIdForAI,
+        },
+      });
+    }
+
+    // Real AI mode (DeepSeek)
     const result = await streamText({
       model: deepseekProvider('deepseek-chat'),
       messages,
@@ -180,7 +240,6 @@ export async function POST(req: Request) {
     const reader = streamResponse.body?.getReader();
     const decoder = new TextDecoder();
     let aiContent = '';
-    const conversationIdForAI = convId || '';
 
     if (reader) {
       const stream = new ReadableStream({
@@ -196,8 +255,8 @@ export async function POST(req: Request) {
             reader.releaseLock();
 
             // 流结束后保存 AI 消息
-            if (aiContent.trim() && conversationIdForAI) {
-              await addAssistantMessage(conversationIdForAI, aiContent.trim());
+            if (aiContent.trim() && convId) {
+              await addAssistantMessage(convId, aiContent.trim());
             }
           } catch (error) {
             controller.error(error);
@@ -208,7 +267,7 @@ export async function POST(req: Request) {
       return new Response(stream, {
         headers: {
           ...Object.fromEntries(streamResponse.headers.entries()),
-          'X-Conversation-Id': conversationIdForAI,
+          'X-Conversation-Id': convId || '',
         },
       });
     }
@@ -216,7 +275,7 @@ export async function POST(req: Request) {
     return new Response(streamResponse.body, {
       headers: {
         ...Object.fromEntries(streamResponse.headers.entries()),
-        'X-Conversation-Id': conversationIdForAI,
+        'X-Conversation-Id': convId || '',
       },
     });
   } catch (error) {

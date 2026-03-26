@@ -7,7 +7,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useAIStatusStore } from '@/store/aiStatusStore';
-import { MockAIAdapter, defaultProvider } from '@/services/AIProviderFactory';
+import { aiProvider } from '@/services/AIProviderFactory';
 import type { IAIProvider } from '@/core/interfaces/IAIProvider';
 import type { Message } from '@/core/types/message';
 
@@ -106,7 +106,7 @@ class DoubleBufferQueue {
  * 流式聊天 Hook
  */
 export function useChatStream(options: UseChatStreamOptions = {}) {
-  const providerRef = useRef<IAIProvider>(options.provider || defaultProvider);
+  const providerRef = useRef<IAIProvider>(options.provider || aiProvider);
   const abortControllerRef = useRef<AbortController | null>(null);
   const bufferRef = useRef<DoubleBufferQueue | null>(null);
   const streamRateRef = useRef<number>(0);
