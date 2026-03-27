@@ -192,7 +192,7 @@ export async function POST(req: Request) {
     if (USE_MOCK) {
       const mockResponse = generateMockResponse(userMessage);
       
-      // Stream mock response
+      // Stream mock response with proper SSE format
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
@@ -202,16 +202,21 @@ export async function POST(req: Request) {
           const interval = setInterval(() => {
             if (index >= chunks.length) {
               clearInterval(interval);
-              controller.close();
+              
+              // Send [DONE] signal
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
               
               // Save to database after streaming
               if (conversationIdForAI) {
                 addAssistantMessage(conversationIdForAI, mockResponse).catch(console.error);
               }
+              controller.close();
               return;
             }
             
-            controller.enqueue(encoder.encode(chunks[index]));
+            // SSE format: data: {"content": "x"}\n\n
+            const chunk = JSON.stringify({ content: chunks[index] });
+            controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
             index++;
           }, 20); // 20ms per character
         },
