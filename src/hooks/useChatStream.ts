@@ -196,7 +196,7 @@ export function useChatStream() {
     );
 
     return aiMessage.id;
-  }, [addMessage, handleChunk, setMessageStatus, setLoading, setStatus, setStreamRate]);
+  }, [addMessage, setMessageStatus, setLoading, setStatus, setStreamRate]);
 
   const cancelStream = useCallback(() => {
     if (abortControllerRef.current) {
