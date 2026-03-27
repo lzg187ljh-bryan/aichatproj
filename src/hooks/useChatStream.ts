@@ -137,14 +137,21 @@ export function useChatStream() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamRateRef = useRef(0);
   
-  const { addMessage, appendToMessage, setMessageStatus, setLoading } = useChatStore();
+  const { addMessage, setMessageStatus, setLoading } = useChatStore();
   const { setStatus, setStreamRate } = useAIStatusStore();
+
+  // DoubleBufferQueue callback - 保持稳定引用
+  const handleChunk = useCallback((messageId: string, content: string) => {
+    // 这里需要访问 appendToMessage，但避免作为依赖
+    // 使用 store 的直接调用
+    useChatStore.getState().appendToMessage(messageId, content);
+  }, []);
 
   useEffect(() => {
     bufferRef.current = new DoubleBufferQueue();
-    bufferRef.current.setCallback((messageId, content) => appendToMessage(messageId, content));
+    bufferRef.current.setCallback(handleChunk);
     return () => bufferRef.current?.destroy();
-  }, [appendToMessage]);
+  }, [handleChunk]);
 
   const sendMessage = useCallback(async (content: string) => {
     // 取消之前的
@@ -165,7 +172,7 @@ export function useChatStream() {
     }, 1000);
 
     // 调用后端
-    const controller = sendToBackend(
+    sendToBackend(
       [userMessage],
       (chunk) => {
         chunkCount++;
@@ -189,7 +196,7 @@ export function useChatStream() {
     );
 
     return aiMessage.id;
-  }, [addMessage, appendToMessage, setMessageStatus, setLoading, setStatus, setStreamRate]);
+  }, [addMessage, handleChunk, setMessageStatus, setLoading, setStatus, setStreamRate]);
 
   const cancelStream = useCallback(() => {
     if (abortControllerRef.current) {
