@@ -4,12 +4,11 @@
  */
 
 import type { Message } from '@/core/types/message';
-import type { IAIProvider } from '@/core/interfaces/IAIProvider';
 
 /**
  * SSE 流式 AI 适配器
  */
-export class SSEAIAdapter implements IAIProvider {
+export class SSEAIAdapter {
   constructor(private baseURL: string = '/api/chat') {}
 
   sendMessageStream(
@@ -77,3 +76,6 @@ export class SSEAIAdapter implements IAIProvider {
     }
   }
 }
+
+// 默认实例
+export const aiProvider = new SSEAIAdapter('/api/chat');

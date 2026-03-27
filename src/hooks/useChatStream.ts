@@ -7,7 +7,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useAIStatusStore } from '@/store/aiStatusStore';
-import { aiProvider } from '@/services/AIProviderFactory';
+import { aiProvider } from '@/services/ai';
 import type { IAIProvider } from '@/core/interfaces/IAIProvider';
 import type { Message } from '@/core/types/message';
 
