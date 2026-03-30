@@ -5,6 +5,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '@/store/chatStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { useAIStatusStore } from '@/store/aiStatusStore';
 import type { Message } from '@/core/types/message';
 
@@ -70,8 +71,10 @@ class DoubleBufferQueue {
  */
 function sendToBackend(
   messages: Message[],
+  conversationId: string | null,
+  newConversationTitle: string | undefined,
   onChunk: (chunk: string) => void,
-  onDone: () => void,
+  onDone: (conversationId: string | null) => void,
   onError: (error: Error) => void
 ): AbortController {
   const controller = new AbortController();
@@ -79,12 +82,19 @@ function sendToBackend(
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: messages.map(m => ({ role: m.role, content: m.content })) }),
+    body: JSON.stringify({ 
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      conversationId,
+      newConversationTitle,
+    }),
     signal: controller.signal,
   })
     .then(async (response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       if (!response.body) throw new Error('No response body');
+
+      // Get conversation ID from header
+      const newConversationId = response.headers.get('X-Conversation-Id');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -98,7 +108,7 @@ function sendToBackend(
             for (const line of buffer.split('\n')) {
               if (line.startsWith('data: ')) {
                 const data = line.slice(6);
-                if (data === '[DONE]') { onDone(); break; }
+                if (data === '[DONE]') { onDone(newConversationId); break; }
                 try { const p = JSON.parse(data); if (p.content) onChunk(p.content); } 
                 catch { onChunk(data); }
               }
@@ -112,17 +122,17 @@ function sendToBackend(
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
-            if (data === '[DONE]') { onDone(); break; }
+            if (data === '[DONE]') { onDone(newConversationId); break; }
             try { const p = JSON.parse(data); if (p.content) onChunk(p.content); } 
             catch { onChunk(data); }
           }
         }
       }
       reader.releaseLock();
-      onDone();
+      onDone(newConversationId);
     })
     .catch((err) => {
-      if (err instanceof Error && err.name === 'AbortError') { onDone(); return; }
+      if (err instanceof Error && err.name === 'AbortError') { onDone(null); return; }
       onError(err instanceof Error ? err : new Error(String(err)));
     });
 
@@ -137,7 +147,8 @@ export function useChatStream() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamRateRef = useRef(0);
   
-  const { addMessage, setMessageStatus, setLoading } = useChatStore();
+  const { addMessage, setMessageStatus, setLoading, clearMessages } = useChatStore();
+  const { currentSessionId, getCurrentSession } = useSessionStore();
   const { setStatus, setStreamRate } = useAIStatusStore();
 
   // DoubleBufferQueue callback - 保持稳定引用
@@ -154,6 +165,22 @@ export function useChatStream() {
   }, [handleChunk]);
 
   const sendMessage = useCallback(async (content: string) => {
+    // 获取当前会话 ID 和名称
+    const currentSession = getCurrentSession();
+    let conversationId = currentSession?.id || null;
+    const isNewLocalSession = conversationId?.startsWith('session_');
+    const sessionName = currentSession?.name;
+
+    // 如果是本地会话 ID（以 session_ 开头），不传 conversationId，让后端创建新对话
+    // 同时传递会话名称作为新对话的标题
+    let newConversationTitle: string | undefined;
+    if (isNewLocalSession && sessionName) {
+      newConversationTitle = sessionName;
+    }
+    if (isNewLocalSession) {
+      conversationId = null;
+    }
+
     // 取消之前的
     if (abortControllerRef.current) abortControllerRef.current.abort();
 
@@ -171,20 +198,34 @@ export function useChatStream() {
       setStreamRate(streamRateRef.current);
     }, 1000);
 
-    // 调用后端
+    // 调用后端，传递 conversationId 和会话名称
     sendToBackend(
       [userMessage],
+      conversationId,
+      newConversationTitle,
       (chunk) => {
         chunkCount++;
         if (!bufferRef.current?.hasData()) setStatus('typing');
         bufferRef.current?.write(aiMessage.id, chunk);
       },
-      () => {
+      (newConversationId) => {
         clearInterval(rateInterval);
         setStatus('idle');
         setStreamRate(0);
         setMessageStatus(aiMessage.id, 'done');
         setLoading(false);
+
+        // 如果后端创建了新对话（本地是新建的会话），更新本地会话 ID
+        if (isNewLocalSession && newConversationId && currentSession) {
+          useSessionStore.setState((state) => ({
+            sessions: state.sessions.map(s => 
+              s.id === currentSession.id 
+                ? { ...s, id: newConversationId } 
+                : s
+            ),
+            currentSessionId: newConversationId,
+          }));
+        }
       },
       (error) => {
         clearInterval(rateInterval);
@@ -196,7 +237,7 @@ export function useChatStream() {
     );
 
     return aiMessage.id;
-  }, [addMessage, setMessageStatus, setLoading, setStatus, setStreamRate]);
+  }, [addMessage, getCurrentSession, setMessageStatus, setLoading, setStatus, setStreamRate]);
 
   const cancelStream = useCallback(() => {
     if (abortControllerRef.current) {

@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { useSessionStore } from '@/store/sessionStore';
 import { useChatStore } from '@/store/chatStore';
@@ -21,18 +21,21 @@ interface ChatLayoutClientProps {
 
 export function ChatLayoutClient({ sidebarType }: ChatLayoutClientProps) {
   const { isOpen, toggle } = useSidebarStore();
-  const { sessions, currentSessionId, getCurrentSession, createSession, switchSession } = useSessionStore();
+  const { sessions, currentSessionId, createSession, switchSession } = useSessionStore();
   const { setMessages } = useChatStore();
   const [hydrated, setHydrated] = useState(false);
+  
+  const loadedRef = useRef(false);
 
   // Wait for hydration
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Load conversations from database when hydrated
+  // Load conversations from database (only once)
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || loadedRef.current) return;
+    loadedRef.current = true;
 
     const loadConversations = async () => {
       const supabase = createBrowserClient(
@@ -49,22 +52,27 @@ export function ChatLayoutClient({ sidebarType }: ChatLayoutClientProps) {
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
 
+      // 获取当前本地会话（包含刚创建的本地会话）
+      const currentState = useSessionStore.getState();
+      const localSessions = currentState.sessions;
+      const currentLocalId = currentState.currentSessionId;
+
+      // 区分本地会话和数据库会话
+      // 本地会话 ID 以 session_ 开头，数据库会话是 UUID
+      const dbSessionIds = new Set(conversations?.map((c) => c.id) || []);
+      const localOnlySessions = localSessions.filter((s) => !s.id.startsWith('uuid') && !dbSessionIds.has(s.id));
+
       if (conversations && conversations.length > 0) {
-        // Import generateMessageId
-        const { generateMessageId } = await import('@/core/types/message');
-        
-        // Convert DB conversations to session format
-        for (const conv of conversations) {
-          const existingSession = useSessionStore.getState().sessions.find(s => s.id === conv.id);
-          if (!existingSession) {
-            // Get messages for this conversation
+        // 加载数据库会话
+        const dbSessions = await Promise.all(
+          conversations.map(async (conv) => {
             const { data: messages } = await supabase
               .from('messages')
               .select('id, role, content, created_at')
               .eq('conversation_id', conv.id)
               .order('created_at', { ascending: true });
 
-            const session = {
+            return {
               id: conv.id,
               name: conv.title,
               messages: (messages || []).map((m: any) => ({
@@ -77,47 +85,63 @@ export function ChatLayoutClient({ sidebarType }: ChatLayoutClientProps) {
               createdAt: new Date(conv.created_at).getTime(),
               updatedAt: new Date(conv.updated_at).getTime(),
             };
+          })
+        );
 
-            // Add to store
-            useSessionStore.setState((state) => ({
-              sessions: [session, ...state.sessions],
-            }));
-          }
+        // 合并：数据库会话 + 本地独有的会话
+        // 优先使用本地会话的 currentSessionId（如果是本地会话），否则用数据库第一个
+        const mergedSessions = [...dbSessions, ...localOnlySessions];
+        
+        // 确定当前会话 ID
+        let finalCurrentId: string | null;
+        if (currentLocalId && localOnlySessions.some((s) => s.id === currentLocalId)) {
+          // 当前选中的是本地新会话，保留
+          finalCurrentId = currentLocalId;
+        } else {
+          // 否则用数据库第一个会话
+          finalCurrentId = dbSessions[0]?.id || localOnlySessions[0]?.id || null;
         }
 
-        // Switch to most recent conversation
-        const mostRecent = conversations[0].id;
-        if (!currentSessionId) {
-          switchSession(mostRecent);
+        useSessionStore.setState({
+          sessions: mergedSessions,
+          currentSessionId: finalCurrentId,
+        });
+
+        // 设置消息
+        const currentSession = mergedSessions.find((s) => s.id === finalCurrentId);
+        if (currentSession) {
+          setMessages(currentSession.messages);
+        } else {
+          setMessages([]);
         }
+      } else if (localOnlySessions.length > 0) {
+        // 没有数据库会话，只有本地会话
+        useSessionStore.setState({
+          sessions: localOnlySessions,
+          currentSessionId: currentLocalId || localOnlySessions[0].id,
+        });
+        const currentSession = localOnlySessions.find((s) => s.id === (currentLocalId || localOnlySessions[0].id));
+        setMessages(currentSession?.messages || []);
       }
     };
 
     loadConversations();
-  }, [hydrated]);
+  }, [hydrated, setMessages]);
 
-  // Initialize session only after hydration
-  useEffect(() => {
-    if (!hydrated) return;
-
-    if (sessions.length === 0) {
-      createSession('Welcome Chat');
-    }
-  }, [hydrated, sessions.length]);
-
-  // Load messages when session changes
-  useEffect(() => {
-    if (!hydrated) return;
-
-    const currentSession = getCurrentSession();
-    if (currentSession) {
-      setMessages(currentSession.messages);
-    }
-  }, [hydrated, currentSessionId, getCurrentSession, setMessages]);
-
+  // Session selection handler
   const handleSessionSelect = (sessionId: string) => {
     switchSession(sessionId);
   };
+
+  // 当 currentSessionId 变化时，同步消息到 chatStore
+  useEffect(() => {
+    if (!currentSessionId) {
+      setMessages([]);
+      return;
+    }
+    const session = useSessionStore.getState().sessions.find(s => s.id === currentSessionId);
+    setMessages(session?.messages || []);
+  }, [currentSessionId, setMessages]);
 
   if (sidebarType === 'sidebar') {
     return <Sidebar isOpen={isOpen} onToggle={toggle} onSessionSelect={handleSessionSelect} />;
