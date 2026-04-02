@@ -1,12 +1,15 @@
 /**
  * API Route - Chat SSE
  * DeepSeek AI / Mock mode + Supabase Auth + Database persistence
+ * 
+ * 数据流控制:
+ * - USE_MOCK=mock: 直接返回预设响应 (旧版)
+ * - USE_MOCK=real: 调用 ai-engine.ts (Vercel AI SDK)
  */
 
-import { streamText } from 'ai';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
+import { streamAI_Text } from '@/lib/ai-engine';
 
 // Types for incoming messages
 interface ChatMessage {
@@ -20,15 +23,8 @@ interface ChatRequestBody {
   newConversationTitle?: string;
 }
 
-// Check if using mock mode
+// Check if using mock mode (外层控制)
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_AI === 'mock';
-
-// DeepSeek Provider (only used when not mock)
-const deepseekProvider = createOpenAICompatible({
-  baseURL: 'https://api.deepseek.com/v1',
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  name: 'deepseek',
-});
 
 // Supabase Admin Client (for server-side DB operations)
 function createAdminClient() {
@@ -232,54 +228,44 @@ export async function POST(req: Request) {
       });
     }
 
-    // Real AI mode (DeepSeek)
-    const result = await streamText({
-      model: deepseekProvider('deepseek-chat'),
-      messages,
-    });
+    // Real AI mode - 调用 ai-engine.ts (Vercel AI SDK)
+    const result = streamAI_Text(
+      messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    ) as { textStream: AsyncIterable<string> };
 
     // 流式响应
-    const streamResponse = result.toTextStreamResponse();
-
-    // 保存 AI 响应到数据库
-    const reader = streamResponse.body?.getReader();
-    const decoder = new TextDecoder();
+    const { textStream } = result;
+    const encoder = new TextEncoder();
     let aiContent = '';
 
-    if (reader) {
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              aiContent += decoder.decode(value, { stream: true });
-              controller.enqueue(value);
-            }
-            controller.close();
-            reader.releaseLock();
-
-            // 流结束后保存 AI 消息
-            if (aiContent.trim() && convId) {
-              await addAssistantMessage(convId, aiContent.trim());
-            }
-          } catch (error) {
-            controller.error(error);
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of textStream) {
+            // 发送 SSE 格式
+            const data = JSON.stringify({ content: chunk });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            aiContent += chunk;
           }
-        },
-      });
+          // 发送完成信号
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
 
-      return new Response(stream, {
-        headers: {
-          ...Object.fromEntries(streamResponse.headers.entries()),
-          'X-Conversation-Id': convId || '',
-        },
-      });
-    }
+          // 流结束后保存 AI 消息
+          if (aiContent.trim() && convId) {
+            await addAssistantMessage(convId, aiContent.trim());
+          }
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
 
-    return new Response(streamResponse.body, {
+    return new Response(stream, {
       headers: {
-        ...Object.fromEntries(streamResponse.headers.entries()),
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
         'X-Conversation-Id': convId || '',
       },
     });
