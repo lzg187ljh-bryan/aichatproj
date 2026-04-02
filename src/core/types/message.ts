@@ -1,11 +1,37 @@
 /**
  * Core Types - Message Entity
- * 强类型消息实体定义
+ * 强类型消息实体定义 - 支持多种消息子类型
  */
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export type MessageStatus = 'pending' | 'streaming' | 'done' | 'error';
+
+/**
+ * 消息子类型 - 用于区分 AI 消息的不同形态
+ */
+export type MessageType = 'text' | 'thinking' | 'tool-call' | 'source' | 'code';
+
+/**
+ * 工具调用信息
+ */
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+  output?: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+}
+
+/**
+ * 引用来源 (RAG 场景)
+ */
+export interface Source {
+  id: string;
+  title: string;
+  content: string;
+  score?: number;
+}
 
 /**
  * 强类型消息实体
@@ -23,6 +49,12 @@ export interface Message {
   status: MessageStatus;
   /** 错误信息 (当 status === 'error' 时) */
   error?: string;
+  /** 消息子类型 */
+  type?: MessageType;
+  /** 工具调用列表 */
+  toolCalls?: ToolCall[];
+  /** 引用来源列表 (RAG) */
+  sources?: Source[];
 }
 
 /**

@@ -511,3 +511,95 @@ class DoubleBufferQueue {
 2. **Throttle**: 固定时间间隔更新
 3. **Virtual List**: 长列表虚拟滚动
 4. **Web Worker**: 复杂计算移至后台线程
+
+---
+
+## 8. 项目中的完整数据流
+
+### 8.1 当前架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      前端 (useChatStream)                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. 用户输入消息                                            │
+│       ↓                                                    │
+│  2. InputArea 调用 sendMessage()                            │
+│       ↓                                                    │
+│  3. addMessage('user', content) → 添加用户消息到 chatStore  │
+│       ↓                                                    │
+│  4. addMessage('assistant', '') → 添加 AI 消息占位         │
+│       ↓                                                    │
+│  5. fetch('/api/chat', { body: JSON }) → 发送请求           │
+│       ↓                                                    │
+│  6. DoubleBufferQueue.write(messageId, chunk)               │
+│       │   ↑                                              │
+│       │   │ (写入缓冲区，触发 RAF)                        │
+│       │   ↓                                              │
+│       └──→ RAF 回调 → bufferRef.current?.callback()        │
+│                        ↓                                   │
+│              appendToMessage(messageId, content)           │
+│                        ↓                                   │
+│              chatStore 更新 → React 渲染                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                              ↑
+                              │ SSE 流式响应
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                      后端 (/api/chat)                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. 解析请求体 (messages, conversationId, etc.)            │
+│       ↓                                                    │
+│  2. 检查 USE_MOCK 环境变量                                  │
+│       ↓                                                    │
+│  ├─ mock ─→ generateMockResponse()                         │
+│  │              ↓                                          │
+│  │         setInterval 逐字符返回                           │
+│  │              ↓                                          │
+│  │         SSE: data: {"content": "x"}\n\n                │
+│  │                                                       │
+│  └─ real ─→ createOpenAICompatible(deepseek)              │
+│              ↓                                            │
+│         streamText() AI SDK                                │
+│              ↓                                            │
+│         SSE 流式返回                                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `InputArea.tsx` | 用户输入，调用 sendMessage() |
+| `useChatStream.ts` | 发送请求，处理流式响应 |
+| `DoubleBufferQueue` | 双缓冲 + RAF 批量更新 |
+| `/api/chat/route.ts` | 后端 API，Mock/Real 切换 |
+| `chatStore.ts` | 消息状态管理 |
+
+### 8.3 Mock vs Real 切换
+
+```typescript
+// /api/chat/route.ts 第 24 行
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_AI === 'mock';
+
+if (USE_MOCK) {
+  // 返回模拟响应
+  return generateMockResponse();
+} else {
+  // 调用真实 AI
+  return streamText(deepseekModel, messages);
+}
+```
+
+### 8.4 为什么用 DoubleBufferQueue?
+
+- **问题**: AI 每秒返回几十个字符，如果每个字符都触发 React 渲染，会很卡
+- **解决**: 
+  1. 收到字符写入 writeBuffer (内存)
+  2. 累积一段时间后，触发 RAF (每帧一次)
+  3. RAF 回调中批量更新 UI
+  4. 100 字符 = ~2-3 次渲染，而不是 100 次

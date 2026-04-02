@@ -1,6 +1,6 @@
 # AI Chat React - 全栈 AI 聊天应用
 
-> 基于 Next.js 14 + TypeScript 的 AI 聊天应用，包含 Canvas 图形学、Web Worker 性能优化、Zustand 状态管理
+> 基于 Next.js 16 + TypeScript 的 AI 聊天应用，包含 Canvas 图形学、Web Worker 性能优化、Docker + Nginx 生产部署
 
 ---
 
@@ -15,15 +15,19 @@
 
 | 类别 | 技术 |
 |------|------|
-| 框架 | Next.js 14+ (App Router), React 19 |
+| 框架 | Next.js 16 (App Router), React 19 |
 | 语言 | TypeScript |
 | 样式 | Tailwind CSS |
 | 状态 | Zustand + localStorage |
-| 图形 | Canvas 2D API, WebGL |
+| 图形 | Canvas 2D API |
 | 富文本 | marked + DOMPurify |
 | 高亮 | Prism.js (12+ 语言) |
 | 构建 | dynamic() 懒加载 |
 | 代码质量 | Husky + lint-staged |
+| 部署 | Docker + Nginx |
+| 认证 | NextAuth.js (GitHub OAuth) |
+| 数据库 | Supabase (PostgreSQL BaaS) |
+| AI | DeepSeek API + SSE 流式 |
 
 ---
 
@@ -172,64 +176,97 @@ export async function POST(req: Request) {
 
 | 优先级 | 技术 | 价值 |
 |--------|------|------|
-| 🔴 高 | **CI/CD + Docker** | DevOps 能力 |
-| 🔴 高 | **SSE + Vercel AI SDK** | 真实 AI 对接 |
-| 🔴 高 | **WASM** | 前沿加分项 |
-| 🟡 中 | **NextAuth.js** | 全栈认证 |
-| 🟡 中 | **Prisma + PostgreSQL** | 全栈数据层 |
+| 🔴 高 | **CI/CD 流水线** | 工程化闭环 |
+| 🟡 中 | **负载均衡** | 水平扩展（预留） |
+| 🟡 中 | **Redis Session** | 多实例共享（预留） |
+| 🟡 中 | **WASM** | 前沿加分项 |
 
 ---
 
-## 🚀 后续开发计划（全栈升级）
+## 🚀 后续开发计划（已部分完成）
 
-### Phase 1: 用户认证
-- NextAuth.js 第三方登录
-- Session 管理
+### Phase 1: 容器化基础 ✅ 已完成
+- [x] Next.js 多阶段构建 Dockerfile
+- [x] Nginx 反向代理配置
+- [x] Docker Compose 编排
+- [x] Healthcheck 健康检查
+- [x] 环境变量配置
 
-### Phase 2: 数据持久化
-- Prisma + PostgreSQL
-- 会话历史云端同步
+### Phase 2: 认证 + 数据持久化 ✅ 已完成
+- [x] NextAuth.js GitHub OAuth
+- [x] Supabase 数据持久化
+- [x] 会话历史云端同步
 
-### Phase 3: AI 对接
-- Vercel AI SDK 多模型支持
-- SSE 流式对话
+### Phase 3: AI 对接 ✅ 已完成
+- [x] DeepSeek API 集成
+- [x] SSE 流式对话
 
-### Phase 4: 工程化闭环
-- Docker 容器化
-- CI/CD 流水线
-- Lighthouse 性能报告
+### Phase 4: 进阶部署（预留）
+- [ ] SSL/HTTPS 配置（Let's Encrypt）
+- [ ] 多实例负载均衡
+- [ ] Redis Session 共享
+- [ ] CI/CD 流水线
 
 ---
 
 ## 💻 本地运行
 
+### 开发模式
 ```bash
 # 安装依赖
 npm install
 
-# 开发模式
+# 启动开发服务器
 npm run dev
 
-# 生产构建
-npm run build
+# 访问
+http://localhost:3000/chat
 ```
 
-访问 http://localhost:3000/chat
+### Docker 部署（生产模式）
+```bash
+# 1. 复制环境变量模板
+copy .env.docker .env
+
+# 2. 填入真实配置（参考 .env.local）
+
+# 3. 构建并启动
+docker-compose up --build
+
+# 4. 访问
+http://localhost
+```
+
+详细说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
 
-## 📝 面试自我介绍模板
+## 📚 技术文档
 
-> "我最近在做一个 AI 对话应用，使用 Next.js 14 + TypeScript 开发。
-> 
+详细的技术分析文档见 `docs/` 目录:
+
+| 文档 | 描述 |
+|------|------|
+| [01-session-message-flow.md](./docs/01-session-message-flow.md) | 会话与消息架构详解 |
+| [02-sse-raf-doublebuffer.md](./docs/02-sse-raf-doublebuffer.md) | SSE/RAF/双缓冲队列详解 |
+| [03-agent-development.md](./docs/03-agent-development.md) | Agent 模式开发规划 |
+
+---
+
+## 📝 自我介绍模板
+
+> "我最近在做一个全栈 AI 对话应用，使用 Next.js 16 + TypeScript 开发，独立完成从开发到部署的全流程。
+>
 > **性能优化**：我将 Markdown 解析卸载到 Web Worker，用双缓冲队列 + RAF 批量更新处理 AI 流式输出，将 DOM 操作从每 30ms 降频到每 16ms。
-> 
+>
 > **图形学**：我实现了一个粒子系统可视化 AI 状态，包含粒子连线网络和鼠标交互效果，深入理解了 requestAnimationFrame 动画循环。
-> 
+>
 > **状态管理**：使用 Zustand 实现会话管理和收藏功能，状态变更自动触发 Canvas 动画联动。
-> 
-> **后续计划**：升级为全栈架构，接入 Vercel AI SDK 实现真实 AI 对话，添加 CI/CD 流水线。"
+>
+> **全栈能力**：我使用 NextAuth.js 实现 GitHub OAuth 登录，Supabase 做数据持久化，DeepSeek API 做 AI 对话。
+>
+> **部署运维**：我使用 Docker 多阶段构建将 Next.js 镜像优化到 200MB 以内，Nginx 配置反向代理和静态资源缓存，添加了安全响应头（CSP、HSTS）。生产环境可配置 SSL 实现 HTTPS 访问，多实例部署时预留了负载均衡和 Redis Session 共享能力。"
 
 ---
 
-*最后更新: 2026-03-19*
+*最后更新: 2026-03-28*
