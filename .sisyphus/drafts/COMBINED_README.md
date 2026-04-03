@@ -237,7 +237,7 @@ docker-compose up --build
 http://localhost
 ```
 
-详细说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)
+详细说明见 [04-docker-deployment.md]
 
 ---
 
@@ -250,23 +250,9 @@ http://localhost
 | [01-session-message-flow.md](./docs/01-session-message-flow.md) | 会话与消息架构详解 |
 | [02-sse-raf-doublebuffer.md](./docs/02-sse-raf-doublebuffer.md) | SSE/RAF/双缓冲队列详解 |
 | [03-agent-development.md](./docs/03-agent-development.md) | Agent 模式开发规划 |
+| [04-docker-deployment.md](./docs/04-docker-deployment.md) |
+
 
 ---
 
-## 📝 自我介绍模板
-
-> "我最近在做一个全栈 AI 对话应用，使用 Next.js 16 + TypeScript 开发，独立完成从开发到部署的全流程。
->
-> **性能优化**：我将 Markdown 解析卸载到 Web Worker，用双缓冲队列 + RAF 批量更新处理 AI 流式输出，将 DOM 操作从每 30ms 降频到每 16ms。
->
-> **图形学**：我实现了一个粒子系统可视化 AI 状态，包含粒子连线网络和鼠标交互效果，深入理解了 requestAnimationFrame 动画循环。
->
-> **状态管理**：使用 Zustand 实现会话管理和收藏功能，状态变更自动触发 Canvas 动画联动。
->
-> **全栈能力**：我使用 NextAuth.js 实现 GitHub OAuth 登录，Supabase 做数据持久化，DeepSeek API 做 AI 对话。
->
-> **部署运维**：我使用 Docker 多阶段构建将 Next.js 镜像优化到 200MB 以内，Nginx 配置反向代理和静态资源缓存，添加了安全响应头（CSP、HSTS）。生产环境可配置 SSL 实现 HTTPS 访问，多实例部署时预留了负载均衡和 Redis Session 共享能力。"
-
----
-
-*最后更新: 2026-03-28*
+*最后更新: 2026-04-03*
