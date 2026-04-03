@@ -25,7 +25,7 @@
 | 构建 | dynamic() 懒加载 |
 | 代码质量 | Husky + lint-staged |
 | 部署 | Docker + Nginx |
-| 认证 | NextAuth.js (GitHub OAuth) |
+| 认证 | Supabase Auth (GitHub OAuth) |
 | 数据库 | Supabase (PostgreSQL BaaS) |
 | AI | DeepSeek API + SSE 流式 |
 
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
 - [x] 环境变量配置
 
 ### Phase 2: 认证 + 数据持久化 ✅ 已完成
-- [x] NextAuth.js GitHub OAuth
+- [x] Supabase Auth GitHub OAuth
 - [x] Supabase 数据持久化
 - [x] 会话历史云端同步
 

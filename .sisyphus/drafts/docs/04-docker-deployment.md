@@ -202,12 +202,10 @@ redis:
       - "6379:6379"
 ```
 
-### 步骤 2: 配置 NextAuth 使用 Redis
+### 步骤 2: 配置 Session 共享
 
-```typescript
-// 需要实现 NextAuth Redis Adapter
-// 详见: https://next-auth.js.org/adapters/redis
-```
+> 当前项目使用 Supabase Auth，Session 由 Supabase 管理。
+> Redis Session 共享是为未来多实例部署预留的功能。
 
 ---
 
@@ -217,11 +215,8 @@ redis:
 |------|------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL | `https://xxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 匿名 key | `eyJxxx...` |
-| `NEXT_PUBLIC_USE_AI` | AI 提供商 | `mock` / `sse` |
+| `NEXT_PUBLIC_USE_AI` | AI 提供商 | `mock` / `real` |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-xxx` |
-| `NEXTAUTH_SECRET` | NextAuth 密钥 | 随机字符串 |
-| `GITHUB_ID` | GitHub OAuth App ID | `Ov23xxx` |
-| `GITHUB_SECRET` | GitHub OAuth App Secret | `xxx` |
 
 ---
 

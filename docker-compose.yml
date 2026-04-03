@@ -23,11 +23,6 @@ services:
       # AI Provider
       - NEXT_PUBLIC_USE_AI=${NEXT_PUBLIC_USE_AI:-mock}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      # NextAuth
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - GITHUB_ID=${GITHUB_ID}
-      - GITHUB_SECRET=${GITHUB_SECRET}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
       interval: 30s
