@@ -1,32 +1,95 @@
 /**
  * Components - ChatContainer
  * 聊天容器主组件
+ * 重构：支持三栏布局 + Artifact 面板
  */
 
 'use client';
 
-import { MessageList } from './MessageList';
-import { InputArea } from './InputArea';
+import { useState, useCallback } from 'react';
+import { Messages } from './Messages';
+import { MultimodalInput } from './MultimodalInput';
+import { ArtifactPanel } from './ArtifactPanel';
 import { AIAuraVisualizer } from '@/components/visual/AIAuraVisualizer';
 import { useChatStream } from '@/hooks/useChatStream';
 import { useSessionSync } from '@/hooks/useSessionSync';
+import { useChatStore } from '@/store/chatStore';
+
+interface Artifact {
+  id: string;
+  type: 'code' | 'document';
+  title: string;
+  content: string;
+  language?: string;
+  createdAt: number;
+}
 
 export function ChatContainer() {
   const { sendMessage, cancelStream } = useChatStream();
+  const { messages, isLoading } = useChatStore();
+  const [artifact, setArtifact] = useState<Artifact | null>(null);
   
   // 同步消息到 session store
   useSessionSync();
 
+  const handleSend = useCallback(
+    (message: string) => {
+      sendMessage(message);
+    },
+    [sendMessage]
+  );
+
+  const handleExampleClick = useCallback(
+    (prompt: string) => {
+      sendMessage(prompt);
+    },
+    [sendMessage]
+  );
+
+  const handleArtifactClick = useCallback(
+    (newArtifact: { id: string; type: 'code' | 'document'; title: string; content: string; language?: string }) => {
+      setArtifact({
+        ...newArtifact,
+        createdAt: Date.now(),
+      });
+    },
+    []
+  );
+
+  const handleArtifactClose = useCallback(() => {
+    setArtifact(null);
+  }, []);
+
   return (
-    <div className="relative flex flex-col h-full min-h-[500px]">
-      {/* Canvas 2D AI 光环可视化 */}
-      <AIAuraVisualizer />
-      
-      {/* 消息列表 */}
-      <MessageList />
-      
-      {/* 输入区域 */}
-      <InputArea onSend={sendMessage} onCancel={cancelStream} />
+    <div className="flex h-full">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col relative min-w-0">
+        {/* Canvas 2D AI 光环可视化 - 保留亮点 */}
+        <AIAuraVisualizer />
+        
+        {/* 消息列表 */}
+        <Messages
+          messages={messages}
+          isLoading={isLoading}
+          onExampleClick={handleExampleClick}
+          onArtifactClick={handleArtifactClick}
+        />
+        
+        {/* 输入区域 */}
+        <MultimodalInput
+          onSend={handleSend}
+          onCancel={cancelStream}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Artifact Panel - 右侧面板 */}
+      {artifact && (
+        <ArtifactPanel
+          artifact={artifact}
+          onClose={handleArtifactClose}
+        />
+      )}
     </div>
   );
 }

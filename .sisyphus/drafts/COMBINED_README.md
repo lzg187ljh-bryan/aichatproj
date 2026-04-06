@@ -1,33 +1,49 @@
 # AI Chat React - 全栈 AI 聊天应用
 
-> 基于 Next.js 16 + TypeScript 的 AI 聊天应用，包含 Canvas 图形学、Web Worker 性能优化、Docker + Nginx 生产部署
+> 基于 Next.js 16 + TypeScript 的 AI Agent 应用，包含 Canvas 图形学、Web Worker 性能优化、Docker + Nginx 生产部署
 
 ---
 
 ## 📌 项目定位
 
-- **定位**: 中高级前端工程师面试作品
-- **目标**: 展示前端架构能力、图形学技能、工程化水平
+- **定位**: 高级全栈程序员面试作品项目
+- **方向**: 偏大前端、AI Agent 方向
+- **目标**: 体现招聘中主流技术点，UI 和功能同步 Vercel AI Chatbot 模板
 
 ---
 
 ## 🛠️ 技术栈
 
-| 类别 | 技术 |
-|------|------|
-| 框架 | Next.js 16 (App Router), React 19 |
-| 语言 | TypeScript |
-| 样式 | Tailwind CSS |
-| 状态 | Zustand + localStorage |
-| 图形 | Canvas 2D API |
-| 富文本 | marked + DOMPurify |
-| 高亮 | Prism.js (12+ 语言) |
-| 构建 | dynamic() 懒加载 |
-| 代码质量 | Husky + lint-staged |
-| 部署 | Docker + Nginx |
-| 认证 | Supabase Auth (GitHub OAuth) |
-| 数据库 | Supabase (PostgreSQL BaaS) |
-| AI | DeepSeek API + SSE 流式 |
+### 已有技术（保留）
+
+| 类别 | 技术 | 状态 |
+|------|------|------|
+| 框架 | Next.js 16 (App Router), React 19 | ✅ |
+| 语言 | TypeScript | ✅ |
+| 样式 | Tailwind CSS v4 | ✅ |
+| 状态 | Zustand + localStorage | ✅ |
+| AI SDK | Vercel AI SDK | ✅ |
+| 图形 | Canvas 2D API | ✅ 核心亮点 |
+| Worker | Web Worker (Markdown解析) | ✅ 核心亮点 |
+| 性能 | 双缓冲队列 + RAF | ✅ 核心亮点 |
+| 流式 | SSE (手写解析) | ✅ 核心亮点 |
+| 富文本 | marked + DOMPurify | ✅ |
+| 高亮 | Prism.js (12+ 语言) | ✅ |
+| 构建 | dynamic() 懒加载 | ✅ |
+| 代码质量 | Husky + lint-staged | ✅ |
+| 部署 | Docker + Nginx | ✅ |
+| 认证 | Supabase Auth (GitHub OAuth) | ✅ |
+| 数据库 | Supabase PostgreSQL | ✅ 保留 |
+
+### 待新增/调整技术
+
+| 类别 | 技术 | 优先级 |
+|------|------|--------|
+| UI组件 | shadcn/ui | 🔴 高 |
+| AI Provider | 阿里云百炼 (替换DeepSeek) | 🔴 高 |
+| 深色模式 | next-themes | 🔴 高 |
+| 文件存储 | 阿里云 OSS (可选) | 🟡 中 |
+| ORM | Drizzle ORM (可选) | ⚠️ 后续 |
 
 ---
 
@@ -172,40 +188,58 @@ export async function POST(req: Request) {
 | 高级 | RSC、状态机、RAF 动画、性能调优 |
 | 工程化 | Husky、lint-staged、Code Splitting |
 
-### ❌ 待补充
+### ❌ 待补充（同步 Vercel AI Chatbot）
 
-| 优先级 | 技术 | 价值 |
+| 优先级 | 功能 | 说明 |
 |--------|------|------|
-| 🔴 高 | **CI/CD 流水线** | 工程化闭环 |
-| 🟡 中 | **负载均衡** | 水平扩展（预留） |
-| 🟡 中 | **Redis Session** | 多实例共享（预留） |
-| 🟡 中 | **WASM** | 前沿加分项 |
+| 🔴 高 | **shadcn/ui 集成** | UI 规范化 |
+| 🔴 高 | **阿里云百炼集成** | 替换 DeepSeek |
+| 🔴 高 | **工具调用 UI** | Agent 核心能力 |
+| 🔴 高 | **深色模式完善** | 自动检测 + 手动切换 |
+| 🔴 高 | **RAG 知识库** | 文档上传 + 向量检索 |
+| 🟡 中 | **文件上传** | 图片/PDF 多模态 |
+| 🟡 中 | **对话分享** | 生成分享链接 |
+| 🟡 中 | **响应式设计** | 移动端适配 |
+| 🟡 中 | **CI/CD 流水线** | GitHub Actions |
 
 ---
 
-## 🚀 后续开发计划（已部分完成）
+## 🚀 后续开发计划
 
-### Phase 1: 容器化基础 ✅ 已完成
-- [x] Next.js 多阶段构建 Dockerfile
-- [x] Nginx 反向代理配置
-- [x] Docker Compose 编排
-- [x] Healthcheck 健康检查
-- [x] 环境变量配置
-
-### Phase 2: 认证 + 数据持久化 ✅ 已完成
+### Phase 0: 已完成 ✅
+- [x] Next.js 16 + React 19 项目初始化
+- [x] Docker 多阶段构建 + Nginx 反向代理
 - [x] Supabase Auth GitHub OAuth
-- [x] Supabase 数据持久化
-- [x] 会话历史云端同步
+- [x] Supabase 数据持久化 + 会话云端同步
+- [x] DeepSeek API + SSE 流式对话
+- [x] Canvas 粒子系统可视化
+- [x] Web Worker Markdown 解析
+- [x] 双缓冲队列性能优化
+- [x] 角色管理系统
 
-### Phase 3: AI 对接 ✅ 已完成
-- [x] DeepSeek API 集成
-- [x] SSE 流式对话
+### Phase 1: 技术栈调整（第 1-3 天）🔴
+- [x] 安装配置 shadcn/ui
+- [x] 替换现有手写组件，统一 UI 规范
+- [ ] 集成阿里云百炼（替换 DeepSeek）
+- [ ] 修改 ai-engine.ts Provider
+- [ ] 完善深色模式（next-themes）
 
-### Phase 4: 进阶部署（预留）
-- [ ] SSL/HTTPS 配置（Let's Encrypt）
-- [ ] 多实例负载均衡
-- [ ] Redis Session 共享
-- [ ] CI/CD 流水线
+### Phase 2: Agent 核心功能（第 4-10 天）🔴
+- [ ] 工具调用 UI 完善
+- [ ] 工具执行状态动画
+- [ ] RAG 知识库（文档上传 + 向量检索）
+- [ ] 文件上传（图片/PDF 多模态）
+
+### Phase 3: UI/UX 完善（第 11-15 天）🟡
+- [ ] 对话分享功能
+- [ ] 响应式设计（移动端适配）
+- [ ] Canvas 性能优化
+
+### Phase 4: 工程化完善（第 16-20 天）🟡
+- [ ] CI/CD 流水线（GitHub Actions）
+- [ ] 监控 & 日志
+- [ ] 阿里云部署（ECS/FC）
+- [ ] HTTPS 配置
 
 ---
 
@@ -255,4 +289,12 @@ http://localhost
 
 ---
 
-*最后更新: 2026-04-03*
+## 📝 待确认事项
+
+1. **百炼具体模型**: 通义千问-Turbo / Plus / Max？（建议 Turbo 成本低）
+2. **RAG 向量库**: Supabase pgvector 还是阿里云向量检索服务？
+3. **部署方式**: 阿里云 ECS 还是函数计算 FC？
+
+---
+
+*最后更新: 2026-04-05*

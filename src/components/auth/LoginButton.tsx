@@ -3,6 +3,17 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { LogOut, User as UserIcon } from 'lucide-react'
 
 export function LoginButton() {
   const [user, setUser] = useState<User | null>(null)
@@ -41,26 +52,42 @@ export function LoginButton() {
   }
 
   if (loading) {
-    return <button className="px-4 py-2 text-gray-500">Loading...</button>
+    return (
+      <Button variant="ghost" disabled className="w-full justify-start">
+        Loading...
+      </Button>
+    )
   }
 
   if (user) {
     return (
-      <button 
-        onClick={handleSignOut}
-        className="px-4 py-2 bg-red-500 text-white rounded text-sm"
-      >
-        Sign out ({user.email})
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={user.user_metadata.avatar_url} />
+              <AvatarFallback>
+                <UserIcon className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate text-sm">{user.email}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     )
   }
 
   return (
-    <button 
-      onClick={handleSignIn}
-      className="px-4 py-2 bg-blue-500 text-white rounded text-sm"
-    >
+    <Button onClick={handleSignIn} variant="default" className="w-full">
       Sign in with GitHub
-    </button>
+    </Button>
   )
 }

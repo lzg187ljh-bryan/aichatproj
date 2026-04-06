@@ -1,14 +1,13 @@
 /**
  * Components - ParticleSphere
  * WebGL 粒子球可视化组件
- * 独立展示，不与 Canvas 2D 重叠
- * 放置于侧边栏顶部
+ * 全屏背景版本，用于 Greeting 界面
  */
 
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useAIStatusStore, type AIStatus } from '@/store/aiStatusStore';
+import { useAIStatusStore } from '@/store/aiStatusStore';
 
 // Vertex Shader
 const VERTEX_SHADER = `
@@ -19,23 +18,43 @@ const VERTEX_SHADER = `
   attribute float a_alpha;
   
   uniform float u_time;
-  uniform float u_status; // 0=idle, 1=thinking, 2=typing
+  uniform float u_status;
+  uniform vec2 u_resolution;
   
   varying float v_alpha;
   
   void main() {
     // 旋转效果
-    float angle = u_time * 0.5 * (0.5 + u_status * 0.3);
+    float angle = u_time * 0.3 * (0.5 + u_status * 0.2);
     float c = cos(angle);
     float s = sin(angle);
     
     vec3 pos = a_position;
-    pos.x = a_position.x * c - a_position.z * s;
-    pos.z = a_position.x * s + a_position.z * c;
-    pos.y = a_position.y * (1.0 + 0.1 * sin(u_time));
     
-    gl_Position = vec4(pos * 0.8, 1.0);
-    gl_PointSize = a_size * (1.0 + 0.2 * sin(u_time * 2.0 + a_position.x));
+    // Y轴旋转
+    float newX = pos.x * c - pos.z * s;
+    float newZ = pos.x * s + pos.z * c;
+    pos.x = newX;
+    pos.z = newZ;
+    
+    // X轴轻微旋转
+    float angleX = u_time * 0.1;
+    float cy = cos(angleX);
+    float sy = sin(angleX);
+    float tempY = pos.y * cy - pos.z * sy;
+    float tempZ = pos.y * sy + pos.z * cy;
+    pos.y = tempY;
+    pos.z = tempZ;
+    
+    // 呼吸效果
+    pos *= 1.0 + 0.05 * sin(u_time * 0.5);
+    
+    gl_Position = vec4(pos * 0.6, 1.0);
+    
+    // 根据分辨率缩放点大小
+    float scale = min(u_resolution.x, u_resolution.y) / 400.0;
+    gl_PointSize = a_size * scale * (1.0 + 0.3 * sin(u_time * 2.0 + a_position.x * 3.0));
+    
     v_alpha = a_alpha;
   }
 `;
@@ -46,6 +65,7 @@ const FRAGMENT_SHADER = `
   
   varying float v_alpha;
   uniform float u_status;
+  uniform float u_time;
   
   void main() {
     vec2 coord = gl_PointCoord - vec2(0.5);
@@ -59,8 +79,8 @@ const FRAGMENT_SHADER = `
     // 根据状态变色
     vec3 color;
     if (u_status < 0.5) {
-      // idle - 蓝色
-      color = vec3(0.23, 0.51, 0.96);
+      // idle - 蓝紫渐变
+      color = mix(vec3(0.23, 0.51, 0.96), vec3(0.55, 0.36, 0.96), sin(u_time * 0.5) * 0.5 + 0.5);
     } else if (u_status < 1.5) {
       // thinking - 紫色
       color = vec3(0.55, 0.36, 0.96);
@@ -69,7 +89,7 @@ const FRAGMENT_SHADER = `
       color = vec3(0.02, 0.71, 0.83);
     }
     
-    gl_FragColor = vec4(color, alpha);
+    gl_FragColor = vec4(color, alpha * 0.8);
   }
 `;
 
@@ -81,13 +101,16 @@ interface Particle {
   alpha: number;
 }
 
-export function ParticleSphere() {
+interface ParticleSphereProps {
+  className?: string;
+}
+
+export function ParticleSphere({ className = '' }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
   const animationRef = useRef<number>(0);
   const particlesRef = useRef<Particle[]>([]);
-  const lastTimeRef = useRef<number>(0);
 
   const status = useAIStatusStore((state) => state.status);
 
@@ -167,7 +190,7 @@ export function ParticleSphere() {
   // 初始化粒子 - 球形分布
   const initParticles = () => {
     const particles: Particle[] = [];
-    const particleCount = 50;
+    const particleCount = 80; // 增加粒子数量
 
     // 斐波那契球面分布
     const phi = Math.PI * (3 - Math.sqrt(5)); // 黄金角
@@ -178,11 +201,11 @@ export function ParticleSphere() {
       const theta = phi * i;
 
       particles.push({
-        x: Math.cos(theta) * radius * 0.7,
-        y: y * 0.7,
-        z: Math.sin(theta) * radius * 0.7,
-        size: 8 + Math.random() * 6,
-        alpha: 0.4 + Math.random() * 0.4,
+        x: Math.cos(theta) * radius,
+        y: y,
+        z: Math.sin(theta) * radius,
+        size: 10 + Math.random() * 8,
+        alpha: 0.3 + Math.random() * 0.5,
       });
     }
 
@@ -214,6 +237,9 @@ export function ParticleSphere() {
 
     const statusLocation = gl.getUniformLocation(program, 'u_status');
     gl.uniform1f(statusLocation, statusValue);
+
+    const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+    gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
 
     // 准备数据
     const particles = particlesRef.current;
@@ -262,14 +288,30 @@ export function ParticleSphere() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 设置尺寸
-    canvas.width = 120;
-    canvas.height = 120;
+    // 设置 canvas 尺寸为容器尺寸
+    const resizeCanvas = () => {
+      const parent = canvas.parentElement;
+      if (parent) {
+        const rect = parent.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        
+        if (glRef.current) {
+          glRef.current.viewport(0, 0, canvas.width, canvas.height);
+        }
+      }
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     initWebGL();
     animationRef.current = requestAnimationFrame(render);
 
     return () => {
+      window.removeEventListener('resize', resizeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -277,15 +319,16 @@ export function ParticleSphere() {
   }, [initWebGL, render]);
 
   return (
-    <div className="flex items-center justify-center p-4">
-      <canvas
-        ref={canvasRef}
-        className="particle-sphere"
-        style={{
-          width: '80px',
-          height: '80px',
-        }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className={`particle-sphere ${className}`}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+      }}
+    />
   );
 }
