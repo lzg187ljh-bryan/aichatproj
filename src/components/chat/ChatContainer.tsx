@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Messages } from './Messages';
 import { MultimodalInput } from './MultimodalInput';
 import { ArtifactPanel } from './ArtifactPanel';
@@ -14,6 +14,7 @@ import { AIAuraVisualizer } from '@/components/visual/AIAuraVisualizer';
 import { useChatStream } from '@/hooks/useChatStream';
 import { useSessionSync } from '@/hooks/useSessionSync';
 import { useChatStore } from '@/store/chatStore';
+import { useSessionStore } from '@/store/sessionStore';
 
 interface Artifact {
   id: string;
@@ -24,10 +25,24 @@ interface Artifact {
   createdAt: number;
 }
 
-export function ChatContainer() {
+interface ChatContainerProps {
+  sessionId?: string; // 历史会话 ID
+}
+
+export function ChatContainer({ sessionId }: ChatContainerProps) {
   const { sendMessage, cancelStream } = useChatStream();
-  const { messages, isLoading } = useChatStore();
+  const { messages, isLoading, loadMessages } = useChatStore();
+  const { setCurrentSession } = useSessionStore();
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  
+  // 根据 sessionId 加载历史会话
+  useEffect(() => {
+    if (sessionId) {
+      setCurrentSession(sessionId);
+      // TODO: 从 Supabase 加载历史消息
+      // loadMessages(sessionId);
+    }
+  }, [sessionId, setCurrentSession]);
   
   // 同步消息到 session store
   useSessionSync();

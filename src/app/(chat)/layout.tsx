@@ -1,21 +1,20 @@
 /**
- * Components - ChatLayout (Server Component)
- * 三栏布局：Sidebar + Chat + ArtifactPanel
- * 参考 Vercel AI Chatbot 模板
+ * (chat) Route Group Layout
+ * 包含 SidebarProvider + AppSidebar + SidebarInset
+ * 参考 Vercel AI Chatbot 模板结构
  */
 
 import { Suspense } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from './AppSidebar';
+import { AppSidebar } from '@/components/layout/AppSidebar';
 import { SidebarSkeleton } from '@/components/ui/SidebarSkeleton';
-import { ChatSkeleton } from '@/components/ui/ChatSkeleton';
-import { ChatHeader } from './ChatHeader';
+import { ChatHeader } from '@/components/layout/ChatHeader';
 
-interface ChatLayoutProps {
+export default function ChatLayout({
+  children,
+}: {
   children: React.ReactNode;
-}
-
-export function ChatLayout({ children }: ChatLayoutProps) {
+}) {
   return (
     <SidebarProvider>
       {/* Left: Sidebar */}
@@ -30,9 +29,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         
         {/* Main Content Area */}
         <main className="flex-1 overflow-hidden">
-          <Suspense fallback={<ChatSkeleton />}>
-            {children}
-          </Suspense>
+          {children}
         </main>
       </SidebarInset>
     </SidebarProvider>
