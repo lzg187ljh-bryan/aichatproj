@@ -64,7 +64,7 @@ export function SettingsContent() {
           <p className="text-muted-foreground mt-1">管理 AI 助手角色和配置</p>
         </div>
         <Link
-          href="/chat"
+          href="/"
           className="px-4 py-2 text-sm bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors"
         >
           返回聊天

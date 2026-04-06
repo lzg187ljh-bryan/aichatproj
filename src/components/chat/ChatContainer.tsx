@@ -31,18 +31,21 @@ interface ChatContainerProps {
 
 export function ChatContainer({ sessionId }: ChatContainerProps) {
   const { sendMessage, cancelStream } = useChatStream();
-  const { messages, isLoading, loadMessages } = useChatStore();
-  const { setCurrentSession } = useSessionStore();
+  const { messages, isLoading } = useChatStore();
+  const { switchSession, sessions } = useSessionStore();
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   
   // 根据 sessionId 加载历史会话
   useEffect(() => {
     if (sessionId) {
-      setCurrentSession(sessionId);
-      // TODO: 从 Supabase 加载历史消息
-      // loadMessages(sessionId);
+      switchSession(sessionId);
+      // 加载该会话的消息
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        useChatStore.getState().setMessages(session.messages);
+      }
     }
-  }, [sessionId, setCurrentSession]);
+  }, [sessionId, switchSession, sessions]);
   
   // 同步消息到 session store
   useSessionSync();

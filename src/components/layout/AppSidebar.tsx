@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +48,7 @@ import { LoginButton } from '@/components/auth/LoginButton';
 import { createBrowserClient } from '@supabase/ssr';
 
 export function AppSidebar() {
+  const router = useRouter();
   const {
     sessions,
     currentSessionId,
@@ -170,7 +172,9 @@ export function AppSidebar() {
     createSession(name);
     setNewChatName('');
     setIsCreating(false);
-  }, [createSession, newChatName]);
+    // 导航到新对话页面
+    router.push('/');
+  }, [createSession, newChatName, router]);
 
   const startRename = useCallback((session: Session) => {
     setEditingId(session.id);
@@ -193,7 +197,8 @@ export function AppSidebar() {
 
   const handleSelect = useCallback((id: string) => {
     switchSession(id);
-  }, [switchSession]);
+    router.push(`/chat/${id}`);
+  }, [switchSession, router]);
 
   return (
     <Sidebar>
@@ -202,7 +207,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/chat">
+              <Link href="/">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                     AI
