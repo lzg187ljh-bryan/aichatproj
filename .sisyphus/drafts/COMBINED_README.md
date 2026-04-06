@@ -8,66 +8,67 @@
 
 - **定位**: 高级全栈程序员面试作品项目
 - **方向**: 偏大前端、AI Agent 方向
-- **目标**: 体现招聘中主流技术点，UI 和功能同步 Vercel AI Chatbot 模板
+- **核心原则**:
+  > **UI 层完全同步 Vercel AI Chatbot 模板，保留现有逻辑层/数据层及技术亮点**
+
+---
+
+## 🎯 为什么不直接用 Vercel 模板？
+
+| Vercel 模板 | 本项目 | 面试价值 |
+|-------------|--------|----------|
+| `useChat` hook (高度封装) | 手写 SSE 解析器 | ✅ 展示底层实现 |
+| React Context | Zustand + localStorage | ✅ 展示状态管理模式 |
+| 无 Web Worker | markdownWorker.ts | ✅ 展示多线程优化 |
+| 无 Canvas | AIAuraVisualizer.tsx | ✅ 展示图形学能力 |
+| 无双缓冲队列 | useChatStream.ts | ✅ 展示性能优化 |
+
+---
+
+## 🏗️ 分层架构（核心设计）
+
+```
+┌─────────────────────────────────────────┐
+│           UI Layer (同步 Vercel)         │
+│  - Vercel AI Chatbot UI 组件样式         │
+│  - shadcn/ui 基础组件                    │
+└─────────────────────────────────────────┘
+              ↓ Props/Events
+┌─────────────────────────────────────────┐
+│       Logic Layer (保留)                 │
+│  - Zustand Store 数据绑定                │
+│  - useChatStream SSE 流式解析            │
+│  - 双缓冲队列性能优化                    │
+└─────────────────────────────────────────┘
+              ↓ Data Flow
+┌─────────────────────────────────────────┐
+│       Data Layer (保留)                  │
+│  - message.ts 消息类型                   │
+│  - Supabase 数据持久化                   │
+│  - localStorage 会话缓存                 │
+└─────────────────────────────────────────┘
+```
 
 ---
 
 ## 🛠️ 技术栈
 
-### 已有技术（保留）
-
 | 类别 | 技术 | 状态 |
 |------|------|------|
-| 框架 | Next.js 16 (App Router), React 19 | ✅ |
+| 框架 | Next.js 16, React 19 | ✅ |
 | 语言 | TypeScript | ✅ |
 | 样式 | Tailwind CSS v4 | ✅ |
-| 状态 | Zustand + localStorage | ✅ |
+| UI组件 | shadcn/ui (16 组件) | ✅ |
+| 状态 | Zustand + localStorage | ✅ **核心亮点** |
 | AI SDK | Vercel AI SDK | ✅ |
-| 图形 | Canvas 2D API | ✅ 核心亮点 |
-| Worker | Web Worker (Markdown解析) | ✅ 核心亮点 |
-| 性能 | 双缓冲队列 + RAF | ✅ 核心亮点 |
-| 流式 | SSE (手写解析) | ✅ 核心亮点 |
-| 富文本 | marked + DOMPurify | ✅ |
-| 高亮 | Prism.js (12+ 语言) | ✅ |
-| 构建 | dynamic() 懒加载 | ✅ |
-| 代码质量 | Husky + lint-staged | ✅ |
-| 部署 | Docker + Nginx | ✅ |
+| 流式 | SSE (手写解析) | ✅ **核心亮点** |
+| 性能 | 双缓冲队列 + RAF | ✅ **核心亮点** |
+| Worker | Web Worker (Markdown解析) | ✅ **核心亮点** |
+| 图形 | Canvas 2D API | ✅ **核心亮点** |
 | 认证 | Supabase Auth (GitHub OAuth) | ✅ |
-| 数据库 | Supabase PostgreSQL | ✅ 保留 |
-
-### 待新增/调整技术
-
-| 类别 | 技术 | 优先级 |
-|------|------|--------|
-| UI组件 | shadcn/ui | 🔴 高 |
-| AI Provider | 阿里云百炼 (替换DeepSeek) | 🔴 高 |
-| 深色模式 | next-themes | 🔴 高 |
-| 文件存储 | 阿里云 OSS (可选) | 🟡 中 |
-| ORM | Drizzle ORM (可选) | ⚠️ 后续 |
-
----
-
-## 📂 项目架构
-
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── chat/page.tsx      # 聊天页 (RSC + SEO)
-│   └── api/chat/route.ts   # SSE API 路由
-│
-├── components/
-│   ├── chat/              # 聊天组件
-│   ├── layout/            # 布局 (Server/Client 分离)
-│   ├── visual/            # Canvas 可视化
-│   └── ui/                # 通用组件
-│
-├── core/                  # 类型 + 接口
-├── services/              # AI 适配器 (Mock/SSE)
-├── store/                 # Zustand 状态管理
-├── hooks/                 # 自定义 Hooks
-├── workers/               # Web Worker
-└── utils/                 # 工具函数
-```
+| 数据库 | Supabase PostgreSQL | ✅ |
+| 部署 | Docker + Nginx | ✅ |
+| AI Provider | DeepSeek | ⚠️ **待替换为百炼** |
 
 ---
 
@@ -78,7 +79,7 @@ src/
 | 技术 | 解决的问题 | 面试话术 |
 |------|------------|----------|
 | **Web Worker** | Markdown 解析阻塞 UI | "将耗时操作卸载到 Worker，避免卡顿" |
-| **双缓冲队列** | 高频 DOM 更新 | "写缓冲+读缓冲+RAF 批量，将 30ms 操作降频到 16ms" |
+| **双缓冲队列** | 高频 DOM 更新 | "写缓冲+读缓冲+RAF 批量，100字符→2-3次渲染" |
 | **dynamic()** | 首屏 Bundle 过大 | "marked/prism 仅在 AI 输出时加载" |
 
 ### 2. Canvas 图形学
@@ -93,149 +94,128 @@ AIAuraVisualizer 实现:
 └── 内存回收 (cancelAnimationFrame)
 ```
 
-### 3. 状态管理设计
-
-```
-Zustand Store:
-├── chatStore       - 消息列表 CRUD
-├── aiStatusStore   - AI 状态机
-├── sessionStore    - 会话管理 (localStorage)
-└── bookmarkStore   - 收藏功能
-```
-
-### 4. RSC 架构
+### 3. SSE 流式解析（手写实现）
 
 ```typescript
-// Server Component: HTML 渲染
-ChatLayout.tsx → <Suspense><Sidebar /></Suspense>
+// useChatStream.ts - 核心代码
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
 
-// Client Component: 交互逻辑
-ChatLayoutClient.tsx → 侧边栏展开/收起
-
-// 动态导入
-const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer'), {
-  ssr: false,
-  loading: () => <Skeleton />
-})
-```
-
----
-
-## 🔧 关键代码
-
-### 双缓冲队列
-
-```typescript
-class DoubleBufferQueue {
-  private writeBuffer: ChunkBuffer[] = [];
-  private readBuffer: ChunkBuffer[] = [];
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
   
-  write(messageId: string, chunk: string) {
-    this.writeBuffer.push({ messageId, chunks: [chunk] });
-    if (this.rafId === null) {
-      this.rafId = requestAnimationFrame(this.flush.bind(this));
-    }
-  }
+  const chunk = decoder.decode(value);
+  const lines = chunk.split('\n');
   
-  private flush() {
-    [this.writeBuffer, this.readBuffer] = [this.readBuffer, this.writeBuffer];
-    for (const buffer of this.readBuffer) {
-      this.callback(buffer.messageId, buffer.chunks.join(''));
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const data = line.slice(6);
+      doubleBufferQueue.write(messageId, data);
     }
-    this.rafId = this.writeBuffer.length > 0 
-      ? requestAnimationFrame(this.flush.bind(this)) 
-      : null;
   }
 }
 ```
 
-### SSE 流式 API
+### 4. Zustand 状态管理
 
 ```typescript
-// src/app/api/chat/route.ts
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  
-  const stream = new ReadableStream({
-    async start(controller) {
-      for (const chunk of aiResponse) {
-        controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
-        await sleep(30);
-      }
-      controller.close();
-    }
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-    }
-  });
-}
+// src/store/chatStore.ts
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set) => ({
+      messages: [],
+      addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+      updateMessage: (id, content) => 
+        set((s) => ({
+          messages: s.messages.map(m => 
+            m.id === id ? { ...m, content } : m
+          )
+        }))
+    }),
+    { name: 'chat-messages' }
+  )
+);
 ```
 
 ---
 
-## 📊 项目覆盖的知识点
+## 📊 开发进度总览
 
-### ✅ 已实现
-
-| 层级 | 知识点 |
-|------|--------|
-| 基础 | TypeScript 类型、React Hooks、组件化 |
-| 进阶 | 性能优化、Web Worker、Canvas 图形学 |
-| 高级 | RSC、状态机、RAF 动画、性能调优 |
-| 工程化 | Husky、lint-staged、Code Splitting |
-
-### ❌ 待补充（同步 Vercel AI Chatbot）
-
-| 优先级 | 功能 | 说明 |
-|--------|------|------|
-| 🔴 高 | **shadcn/ui 集成** | UI 规范化 |
-| 🔴 高 | **阿里云百炼集成** | 替换 DeepSeek |
-| 🔴 高 | **工具调用 UI** | Agent 核心能力 |
-| 🔴 高 | **深色模式完善** | 自动检测 + 手动切换 |
-| 🔴 高 | **RAG 知识库** | 文档上传 + 向量检索 |
-| 🟡 中 | **文件上传** | 图片/PDF 多模态 |
-| 🟡 中 | **对话分享** | 生成分享链接 |
-| 🟡 中 | **响应式设计** | 移动端适配 |
-| 🟡 中 | **CI/CD 流水线** | GitHub Actions |
+```
+Phase 0 (基础 UI 重构):  ██████████ 100% ✅
+Phase 1 (UI 全面同步):   ░░░░░░░░░░   0% ← 当前阶段
+Phase 2 (Agent 核心):     ██░░░░░░░░  10%
+Phase 3 (工程化):         ░░░░░░░░░░   0%
+```
 
 ---
 
-## 🚀 后续开发计划
+## 🚀 开发计划
 
-### Phase 0: 已完成 ✅
-- [x] Next.js 16 + React 19 项目初始化
-- [x] Docker 多阶段构建 + Nginx 反向代理
-- [x] Supabase Auth GitHub OAuth
-- [x] Supabase 数据持久化 + 会话云端同步
-- [x] DeepSeek API + SSE 流式对话
-- [x] Canvas 粒子系统可视化
-- [x] Web Worker Markdown 解析
-- [x] 双缓冲队列性能优化
-- [x] 角色管理系统
+### ✅ Phase 0: 已完成
 
-### Phase 1: 技术栈调整（第 1-3 天）🔴
-- [x] 安装配置 shadcn/ui
-- [x] 替换现有手写组件，统一 UI 规范
-- [ ] 集成阿里云百炼（替换 DeepSeek）
-- [ ] 修改 ai-engine.ts Provider
-- [ ] 完善深色模式（next-themes）
+| 任务 | 状态 |
+|------|------|
+| Next.js 16 + React 19 项目初始化 | ✅ |
+| Docker 多阶段构建 + Nginx 反向代理 | ✅ |
+| Supabase Auth GitHub OAuth | ✅ |
+| Supabase 数据持久化 + 会话云端同步 | ✅ |
+| DeepSeek API + SSE 流式对话 | ✅ |
+| Canvas 粒子系统可视化 | ✅ |
+| Web Worker Markdown 解析 | ✅ |
+| 双缓冲队列性能优化 | ✅ |
+| shadcn/ui 安装（16 组件） | ✅ |
+| AppSidebar 重构 | ✅ |
+| SidebarToggle 创建 | ✅ |
+| Sidebar 折叠修复 | ✅ |
+| Greeting 欢迎界面 | ✅ |
+| MultimodalInput 输入区 | ✅ |
+| Messages/Message 组件 | ✅ |
+| ArtifactPanel 面板 | ✅ |
+| 旧组件清理（7 文件删除） | ✅ |
 
-### Phase 2: Agent 核心功能（第 4-10 天）🔴
-- [ ] 工具调用 UI 完善
-- [ ] 工具执行状态动画
+---
+
+### 🔴 Phase 1: UI 全面同步 Vercel AI Chatbot（当前阶段）
+
+#### Step 1: 路由结构同步
+- [ ] 创建 `(chat)` 路由组
+- [ ] 移动 `SidebarProvider` 到 `(chat)/layout.tsx`
+- [ ] 创建 `[id]` 动态路由（历史对话按 ID）
+
+#### Step 2: 消息组件完善
+- [ ] 同步 Vercel `message.tsx` UI 样式
+- [ ] 添加消息操作按钮（复制、删除）
+- [ ] 添加流式渲染动画（打字机效果）
+
+#### Step 3: 工具调用 UI
+- [ ] 创建 `ToolResult.tsx` 组件
+- [ ] 完善 `Message.tsx` 的 tool-call 渲染
+- [ ] 添加工具执行状态动画
+
+#### Step 4: Model Selector 联动 + 百炼集成
+- [ ] 连接 ModelSelector 到 `useChatStream`
+- [ ] 传递 `selectedModel` 到 API endpoint
+- [ ] **替换 DeepSeek → 阿里云百炼**
+
+#### Step 5: Artifact Panel 完善
+- [ ] 完善 Artifact Panel 交互
+- [ ] 添加代码复制功能
+- [ ] 添加文件类型标签
+
+---
+
+### 🟡 Phase 2: Agent 核心功能
+
+- [ ] 工具调用 API 层完善
 - [ ] RAG 知识库（文档上传 + 向量检索）
 - [ ] 文件上传（图片/PDF 多模态）
 
-### Phase 3: UI/UX 完善（第 11-15 天）🟡
-- [ ] 对话分享功能
-- [ ] 响应式设计（移动端适配）
-- [ ] Canvas 性能优化
+---
 
-### Phase 4: 工程化完善（第 16-20 天）🟡
+### 🟢 Phase 3: 工程化完善
+
 - [ ] CI/CD 流水线（GitHub Actions）
 - [ ] 监控 & 日志
 - [ ] 阿里云部署（ECS/FC）
@@ -243,58 +223,125 @@ export async function POST(req: Request) {
 
 ---
 
+## 🎨 UI 组件对照表
+
+### 已同步组件 ✅
+
+| Vercel 组件 | 本项目组件 | 状态 |
+|-------------|------------|------|
+| `app-sidebar.tsx` | `AppSidebar.tsx` | ✅ 完成 |
+| `sidebar-toggle.tsx` | `SidebarToggle.tsx` | ✅ 完成 |
+| `chat-header.tsx` | `ChatHeader.tsx` | ✅ 完成 |
+| `greeting.tsx` | `Greeting.tsx` | ✅ 完成 |
+| `messages.tsx` | `Messages.tsx` | ✅ 完成 |
+| `input.tsx` | `MultimodalInput.tsx` | ✅ 完成 |
+
+### 需完善组件 🔄
+
+| Vercel 组件 | 本项目组件 | 待办 |
+|-------------|------------|------|
+| `message.tsx` | `Message.tsx` | 操作按钮 + 流式动画 |
+| `model-selector.tsx` | `ModelSelector.tsx` | API 联动 |
+| `artifact.tsx` | `ArtifactPanel.tsx` | 交互完善 |
+
+### 需新增组件 ❌
+
+| Vercel 组件 | 作用 | 优先级 |
+|-------------|------|--------|
+| `tool-result.tsx` | 工具调用结果展示 | 🔴 高 |
+| `suggested-actions.tsx` | 快捷提问按钮 | 🟡 中 |
+
+---
+
+## 📂 项目结构
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── chat/page.tsx      # 聊天页
+│   ├── api/chat/route.ts  # SSE API 路由
+│   └── settings/          # 设置页
+│
+├── components/
+│   ├── chat/              # 聊天组件 (新架构)
+│   │   ├── ChatContainer.tsx
+│   │   ├── Messages.tsx
+│   │   ├── Message.tsx
+│   │   ├── Greeting.tsx
+│   │   ├── MultimodalInput.tsx
+│   │   ├── ModelSelector.tsx
+│   │   ├── ArtifactPanel.tsx
+│   │   └── MarkdownRenderer.tsx
+│   ├── layout/            # 布局组件
+│   │   ├── ChatLayout.tsx
+│   │   ├── AppSidebar.tsx
+│   │   └── ChatHeader.tsx
+│   ├── ui/                # shadcn/ui (16 组件)
+│   └── visual/            # Canvas 可视化
+│       ├── AIAuraVisualizer.tsx
+│       └── ParticleSphere.tsx
+│
+├── core/types/            # 类型定义
+│   └── message.ts         # ChatMessage 类型
+│
+├── hooks/                 # 自定义 Hooks
+│   ├── useChatStream.ts   # SSE + 双缓冲 (核心)
+│   ├── useSessionSync.ts  # 会话同步
+│   └── useAutoScroll.ts   # 自动滚动
+│
+├── store/                 # Zustand 状态管理
+│   ├── chatStore.ts       # 消息状态
+│   ├── sessionStore.ts    # 会话管理
+│   ├── aiSettingsStore.ts # 角色/模型设置
+│   └── aiStatusStore.ts   # AI 状态机
+│
+├── workers/               # Web Worker
+│   └── markdownWorker.ts  # Markdown 后台解析
+│
+├── lib/
+│   ├── ai-engine.ts       # AI 引擎 (待替换 DeepSeek)
+│   └── supabase-server.ts # 数据库/认证
+│
+└── utils/                 # 工具函数
+```
+
+---
+
 ## 💻 本地运行
 
 ### 开发模式
 ```bash
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
-
-# 访问
-http://localhost:3000/chat
+# 访问 http://localhost:3000/chat
 ```
 
-### Docker 部署（生产模式）
+### Docker 部署
 ```bash
-# 1. 复制环境变量模板
 copy .env.docker .env
-
-# 2. 填入真实配置（参考 .env.local）
-
-# 3. 构建并启动
 docker-compose up --build
-
-# 4. 访问
-http://localhost
+# 访问 http://localhost
 ```
-
-详细说明见 [04-docker-deployment.md]
 
 ---
 
 ## 📚 技术文档
-
-详细的技术分析文档见 `docs/` 目录:
 
 | 文档 | 描述 |
 |------|------|
 | [01-session-message-flow.md](./docs/01-session-message-flow.md) | 会话与消息架构详解 |
 | [02-sse-raf-doublebuffer.md](./docs/02-sse-raf-doublebuffer.md) | SSE/RAF/双缓冲队列详解 |
 | [03-agent-development.md](./docs/03-agent-development.md) | Agent 模式开发规划 |
-| [04-docker-deployment.md](./docs/04-docker-deployment.md) |
-
-
----
-
-## 📝 待确认事项
-
-1. **百炼具体模型**: 通义千问-Turbo / Plus / Max？（建议 Turbo 成本低）
-2. **RAG 向量库**: Supabase pgvector 还是阿里云向量检索服务？
-3. **部署方式**: 阿里云 ECS 还是函数计算 FC？
+| [04-docker-deployment.md](./docs/04-docker-deployment.md) | Docker 部署指南 |
 
 ---
 
-*最后更新: 2026-04-05*
+## 🚧 当前阻塞点
+
+1. **AI Provider 硬编码** - `ai-engine.ts` 直接 import deepseek
+2. **工具调用未跑通** - `streamAI_WithTools` 存在但 API 层未调用
+3. **多模态不支持** - ChatMessage 只有 `content: string`
+
+---
+
+*最后更新: 2026-04-06*
