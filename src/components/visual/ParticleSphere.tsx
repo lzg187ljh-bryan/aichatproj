@@ -204,8 +204,8 @@ export function ParticleSphere({ className = '' }: ParticleSphereProps) {
         x: Math.cos(theta) * radius,
         y: y,
         z: Math.sin(theta) * radius,
-        size: 10 + Math.random() * 8,
-        alpha: 0.3 + Math.random() * 0.5,
+        size: 25 + Math.random() * 20,
+        alpha: 0.6 + Math.random() * 0.4,
       });
     }
 

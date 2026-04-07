@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
 
-// 百炼模型配置（与 OpenClaw 配置一致）
+// 百炼模型配置（与 ai-engine.ts 中的 MODELS 对应）
 export const BAILIAN_MODELS: Array<{
   id: string;
   name: string;
@@ -26,27 +26,27 @@ export const BAILIAN_MODELS: Array<{
   input: string[];
 }> = [
   {
-    id: 'qwen3.5-plus',
-    name: 'Qwen 3.5 Plus',
+    id: 'qwen-plus',
+    name: 'Qwen Plus',
     description: '快速响应，适合日常对话',
     input: ['text', 'image'],
   },
   {
-    id: 'qwen3-max-2026-01-23',
-    name: 'Qwen 3 Max',
+    id: 'qwen-max',
+    name: 'Qwen Max',
     description: '最强性能，复杂任务首选',
     input: ['text'],
   },
   {
-    id: 'qwen3-coder-next',
-    name: 'Qwen 3 Coder Next',
-    description: '代码专家，编程最佳',
+    id: 'qwen-coder-plus',
+    name: 'Qwen Coder Plus',
+    description: '代码助手，高性价比',
     input: ['text'],
   },
   {
-    id: 'qwen3-coder-plus',
-    name: 'Qwen 3 Coder Plus',
-    description: '代码助手，高性价比',
+    id: 'qwen-coder-next',
+    name: 'Qwen Coder Next',
+    description: '代码专家，编程最佳',
     input: ['text'],
   },
   {
@@ -68,7 +68,7 @@ export const BAILIAN_MODELS: Array<{
     input: ['text'],
   },
   {
-    id: 'MiniMax-M2.5',
+    id: 'minimax-m2.5',
     name: 'MiniMax M2.5',
     description: 'MiniMax 出品',
     input: ['text'],

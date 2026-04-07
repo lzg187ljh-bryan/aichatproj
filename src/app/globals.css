@@ -21,6 +21,8 @@
   --sidebar-accent-foreground: hsl(240 5.9% 10%);
   --sidebar-border: hsl(220 13% 91%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -482,4 +484,13 @@ pre[class*="language-"] {
 
 .sidebar-rail:hover::after {
   background: var(--sidebar-border);
+}
+
+/* Sidebar collapsed width fix */
+[data-collapsible="icon"][data-state="collapsed"] [data-sidebar="sidebar"] {
+  width: var(--sidebar-width-icon) !important;
+}
+
+[data-collapsible="icon"][data-state="collapsed"] {
+  --sidebar-width: var(--sidebar-width-icon);
 }

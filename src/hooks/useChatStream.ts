@@ -12,8 +12,8 @@
  */
 
 import { useRef, useCallback, useEffect } from 'react';
-import { useChatStore } from '@/store/chatStore';
-import { useSessionStore } from '@/store/sessionStore';
+import { useChatStore, ChatState } from '@/store/chatStore';
+import { useSessionStore, SessionState } from '@/store/sessionStore';
 import { useAIStatusStore } from '@/store/aiStatusStore';
 import type { Message } from '@/core/types/message';
 
@@ -144,6 +144,7 @@ function sendToBackend(
   messages: Message[],                          // 用户消息
   conversationId: string | null,               // 会话 ID (null = 新建)
   newConversationTitle: string | undefined,   // 新会话标题
+  model: string,                               // AI 模型 ID
   onChunk: (chunk: string) => void,            // 字符块回调
   onDone: (conversationId: string | null) => void,  // 完成回调
   onError: (error: Error) => void              // 错误回调
@@ -159,6 +160,7 @@ function sendToBackend(
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       conversationId,
       newConversationTitle,
+      model,  // 传入选择的模型
     }),
     signal: controller.signal,  // 绑定 AbortSignal
   })
@@ -277,8 +279,15 @@ export function useChatStream() {
    * 6. 处理响应 (chunk/done/error)
    */
   const sendMessage = useCallback(async (content: string) => {
-    // ===== 1. 获取当前会话信息 =====
-    const currentSession = getCurrentSession();
+    // ===== 1. 获取或创建当前会话 =====
+    let currentSession = getCurrentSession();
+    
+    // 如果没有当前会话，创建一个
+    if (!currentSession) {
+      const { createSession } = useSessionStore.getState();
+      currentSession = createSession();
+    }
+    
     let conversationId = currentSession?.id || null;
     
     // 检查是否是本地新建的会话 (session_ 开头)
@@ -314,10 +323,14 @@ export function useChatStream() {
     }, 1000);
 
     // ===== 5. 调用后端 API =====
+    // 获取当前选择的模型
+    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    
     sendToBackend(
       [userMessage],                    // 只传用户消息
       conversationId,                    // 会话 ID
       newConversationTitle,              // 新会话标题
+      selectedModel,                     // 选择的百炼模型
       // onChunk: 收到字符块
       (chunk) => {
         chunkCount++;  // 计数
@@ -361,6 +374,165 @@ export function useChatStream() {
   }, [addMessage, getCurrentSession, setMessageStatus, setLoading, setStatus, setStreamRate]);
 
   /**
+   * regenerate - 重新生成 AI 回复
+   * 找到最后一条用户消息，删除从该消息开始的所有后续消息，然后重新发送
+   */
+  const regenerate = useCallback(async () => {
+    const { messages, deleteMessagesFrom, addMessage } = useChatStore.getState();
+    
+    // 找到最后一条用户消息
+    let lastUserMessage: Message | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMessage = messages[i];
+        break;
+      }
+    }
+    
+    if (!lastUserMessage) return;
+    
+    // 删除从该用户消息开始的所有后续消息
+    deleteMessagesFrom(lastUserMessage.id);
+    
+    // 重新发送该用户消息
+    // 注意：这里需要手动调用 sendMessage，但它会添加新的用户消息
+    // 所以我们直接调用 sendToBackend
+    const currentSession = getCurrentSession();
+    const conversationId = currentSession?.id?.startsWith('session_') ? null : (currentSession?.id || null);
+    const isNewLocalSession = currentSession?.id?.startsWith('session_');
+    const newConversationTitle = isNewLocalSession ? currentSession?.name : undefined;
+    
+    // 取消之前的请求
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    
+    // 添加新的 AI 消息占位
+    const aiMessage = addMessage('assistant', '');
+    setLoading(true);
+    setStatus('thinking');
+    
+    let chunkCount = 0;
+    const rateInterval = setInterval(() => {
+      streamRateRef.current = chunkCount;
+      chunkCount = 0;
+      setStreamRate(streamRateRef.current);
+    }, 1000);
+    
+    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    
+    sendToBackend(
+      [lastUserMessage],
+      conversationId,
+      newConversationTitle,
+      selectedModel,
+      (chunk) => {
+        chunkCount++;
+        if (!bufferRef.current?.hasData()) setStatus('typing');
+        bufferRef.current?.write(aiMessage.id, chunk);
+      },
+      (newConversationId) => {
+        clearInterval(rateInterval);
+        setStatus('idle');
+        setStreamRate(0);
+        setMessageStatus(aiMessage.id, 'done');
+        setLoading(false);
+        if (isNewLocalSession && newConversationId && currentSession) {
+          useSessionStore.setState((state) => ({
+            sessions: state.sessions.map(s => 
+              s.id === currentSession.id 
+                ? { ...s, id: newConversationId } 
+                : s
+            ),
+            currentSessionId: newConversationId,
+          }));
+        }
+      },
+      (error) => {
+        clearInterval(rateInterval);
+        setStatus('idle');
+        setStreamRate(0);
+        setMessageStatus(aiMessage.id, 'error', error.message);
+        setLoading(false);
+      }
+    );
+  }, [getCurrentSession, setLoading, setStatus, setStreamRate, setMessageStatus]);
+
+  /**
+   * editAndResend - 编辑用户消息并重新发送
+   */
+  const editAndResend = useCallback(async (messageId: string, newContent: string) => {
+    const { messages, deleteMessagesFrom, updateMessage, addMessage } = useChatStore.getState();
+    
+    // 找到要编辑的消息
+    const messageToEdit = messages.find((m: Message) => m.id === messageId);
+    if (!messageToEdit || messageToEdit.role !== 'user') return;
+    
+    // 删除从该消息开始的所有后续消息
+    deleteMessagesFrom(messageId);
+    
+    // 更新消息内容
+    updateMessage(messageId, { content: newContent });
+    
+    // 发送新内容
+    const currentSession = getCurrentSession();
+    const conversationId = currentSession?.id?.startsWith('session_') ? null : (currentSession?.id || null);
+    const isNewLocalSession = currentSession?.id?.startsWith('session_');
+    const newConversationTitle = isNewLocalSession ? currentSession?.name : undefined;
+    
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    
+    const aiMessage = addMessage('assistant', '');
+    setLoading(true);
+    setStatus('thinking');
+    
+    let chunkCount = 0;
+    const rateInterval = setInterval(() => {
+      streamRateRef.current = chunkCount;
+      chunkCount = 0;
+      setStreamRate(streamRateRef.current);
+    }, 1000);
+    
+    // 使用更新后的消息
+    const editedMessage = { ...messageToEdit, content: newContent };
+    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    
+    sendToBackend(
+      [editedMessage],
+      conversationId,
+      newConversationTitle,
+      selectedModel,
+      (chunk) => {
+        chunkCount++;
+        if (!bufferRef.current?.hasData()) setStatus('typing');
+        bufferRef.current?.write(aiMessage.id, chunk);
+      },
+      (newConversationId) => {
+        clearInterval(rateInterval);
+        setStatus('idle');
+        setStreamRate(0);
+        setMessageStatus(aiMessage.id, 'done');
+        setLoading(false);
+        if (isNewLocalSession && newConversationId && currentSession) {
+          useSessionStore.setState((state) => ({
+            sessions: state.sessions.map(s => 
+              s.id === currentSession.id 
+                ? { ...s, id: newConversationId } 
+                : s
+            ),
+            currentSessionId: newConversationId,
+          }));
+        }
+      },
+      (error) => {
+        clearInterval(rateInterval);
+        setStatus('idle');
+        setStreamRate(0);
+        setMessageStatus(aiMessage.id, 'error', error.message);
+        setLoading(false);
+      }
+    );
+  }, [getCurrentSession, setLoading, setStatus, setStreamRate, setMessageStatus]);
+
+  /**
    * cancelStream - 取消当前流式请求
    */
   const cancelStream = useCallback(() => {
@@ -373,5 +545,5 @@ export function useChatStream() {
     setLoading(false);
   }, [setStatus, setStreamRate, setLoading]);
 
-  return { sendMessage, cancelStream };
+  return { sendMessage, regenerate, editAndResend, cancelStream };
 }

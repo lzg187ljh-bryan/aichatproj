@@ -12,10 +12,15 @@
 import { useEffect, useRef } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useSessionStore } from '@/store/sessionStore';
+import type { Message } from '@/core/types/message';
 
 export function useSessionSync() {
-  const chatMessages = useChatStore((state) => state.messages);
-  const { currentSessionId, sessions, addMessageToCurrentSession, updateMessageInCurrentSession } = useSessionStore();
+  // 使用 any 类型避免循环依赖
+  const chatMessages = useChatStore((state: any) => state.messages);
+  const currentSessionId = useSessionStore((state: any) => state.currentSessionId);
+  const sessions = useSessionStore((state: any) => state.sessions);
+  const addMessageToCurrentSession = useSessionStore((state: any) => state.addMessageToCurrentSession);
+  const updateMessageInCurrentSession = useSessionStore((state: any) => state.updateMessageInCurrentSession);
   
   // 使用 ref 跟踪上一次同步时的 chatMessages 长度
   // 只有当消息变多（用户发送消息）时才同步，而不是切换会话时
@@ -25,24 +30,24 @@ export function useSessionSync() {
   useEffect(() => {
     if (!currentSessionId) return;
 
-    const currentSession = sessions.find(s => s.id === currentSessionId);
+    const currentSession = sessions.find((s: any) => s.id === currentSessionId);
     if (!currentSession) return;
 
     // 如果消息变多了（用户发送了新消息），才同步
     // 如果消息数量减少了或不变，说明是切换会话，不同步
     if (chatMessages.length > prevMessagesLengthRef.current) {
       const sessionMessages = currentSession.messages;
-      const sessionMessageIds = new Set(sessionMessages.map(m => m.id));
+      const sessionMessageIds = new Set(sessionMessages.map((m: Message) => m.id));
 
       // 检测新增的消息（通过 ID 判断）
-      const newMessages = chatMessages.filter(msg => !sessionMessageIds.has(msg.id));
+      const newMessages = chatMessages.filter((msg: Message) => !sessionMessageIds.has(msg.id));
       for (const msg of newMessages) {
         addMessageToCurrentSession(msg);
       }
 
       // 检测更新的消息
       for (const msg of chatMessages) {
-        const existingMsg = sessionMessages.find(m => m.id === msg.id);
+        const existingMsg = sessionMessages.find((m: Message) => m.id === msg.id);
         if (existingMsg && existingMsg.content !== msg.content) {
           updateMessageInCurrentSession(msg.id, msg);
         }

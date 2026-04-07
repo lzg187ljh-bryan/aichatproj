@@ -17,6 +17,8 @@ interface MessagesProps {
   isLoading?: boolean;
   onExampleClick: (prompt: string) => void;
   onArtifactClick?: (artifact: { id: string; type: 'code' | 'document'; title: string; content: string; language?: string }) => void;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerate?: () => void;
 }
 
 export function Messages({
@@ -24,6 +26,8 @@ export function Messages({
   isLoading,
   onExampleClick,
   onArtifactClick,
+  onEdit,
+  onRegenerate,
 }: MessagesProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -61,9 +65,9 @@ export function Messages({
   // Show greeting if no messages after hydration
   if (messages.length === 0) {
     return (
-      <ScrollArea className="flex-1">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Greeting onExampleClick={onExampleClick} />
-      </ScrollArea>
+      </div>
     );
   }
 
@@ -75,6 +79,9 @@ export function Messages({
             key={message.id || index}
             message={message}
             onArtifactClick={onArtifactClick}
+            onEdit={onEdit}
+            onRegenerate={onRegenerate}
+            isLastMessage={index === messages.length - 1}
           />
         ))}
         

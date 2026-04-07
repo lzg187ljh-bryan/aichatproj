@@ -6,7 +6,7 @@
 
 ## 📌 项目定位
 
-- **定位**: 高级全栈程序员面试作品项目
+- **定位**: 高级全栈项目
 - **方向**: 偏大前端、AI Agent 方向
 - **核心原则**:
   > **UI 层完全同步 Vercel AI Chatbot 模板，保留现有逻辑层/数据层及技术亮点**
@@ -144,7 +144,7 @@ export const useChatStore = create<ChatState>()(
 
 ```
 Phase 0 (基础 UI 重构):  ██████████ 100% ✅
-Phase 1 (UI 全面同步):   ░░░░░░░░░░   0% ← 当前阶段
+Phase 1 (UI 全面同步):   ██████░░░░  60% ← 当前阶段
 Phase 2 (Agent 核心):     ██░░░░░░░░  10%
 Phase 3 (工程化):         ░░░░░░░░░░   0%
 ```
@@ -179,20 +179,21 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 
 ### 🔴 Phase 1: UI 全面同步 Vercel AI Chatbot（当前阶段）
 
-#### Step 1: 路由结构同步
-- [ ] 创建 `(chat)` 路由组
-- [ ] 移动 `SidebarProvider` 到 `(chat)/layout.tsx`
-- [ ] 创建 `[id]` 动态路由（历史对话按 ID）
+#### Step 1: 路由结构同步 ✅ 完成
+- [x] 创建 `(chat)` 路由组
+- [x] 移动 `SidebarProvider` 到 `(chat)/layout.tsx`
+- [x] 创建 `[id]` 动态路由（历史对话按 ID）
+- [x] Bug 修复：路由导航 + switchSession
 
-#### Step 2: 消息组件完善
-- [ ] 同步 Vercel `message.tsx` UI 样式
-- [ ] 添加消息操作按钮（复制、删除）
-- [ ] 添加流式渲染动画（打字机效果）
+#### Step 2: 消息组件完善 ✅ 完成
+- [x] 同步 Vercel `message.tsx` UI 样式
+- [x] 添加消息操作按钮（复制、编辑、重新生成）
+- [x] 流式渲染动画（已实现：双缓冲队列 + Web Worker）
 
-#### Step 3: 工具调用 UI
-- [ ] 创建 `ToolResult.tsx` 组件
-- [ ] 完善 `Message.tsx` 的 tool-call 渲染
-- [ ] 添加工具执行状态动画
+#### Step 3: 工具调用 UI ✅ 完成
+- [x] 创建 `ToolResult.tsx` 组件
+- [x] 完善 `Message.tsx` 的 tool-call 渲染
+- [x] 添加工具执行状态动画（pending/running/completed/error）
 
 #### Step 4: Model Selector 联动 + 百炼集成
 - [ ] 连接 ModelSelector 到 `useChatStream`
@@ -208,18 +209,24 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 
 ### 🟡 Phase 2: Agent 核心功能
 
-- [ ] 工具调用 API 层完善
-- [ ] RAG 知识库（文档上传 + 向量检索）
+- [ ] 工具调用 API 层完善（Vercel AI SDK Tools）
 - [ ] 文件上传（图片/PDF 多模态）
+- [ ] 知识库基础（文档上传 + 关键词检索，先不做向量）
 
 ---
 
-### 🟢 Phase 3: 工程化完善
+### 🟢 Phase 3: 数据层重构 + RAG
 
+- [ ] RDS PostgreSQL 替换 Supabase
+- [ ] pgvector 向量扩展
+- [ ] **RAG 实现（LangChain + pgvector）**
+  - 文档向量化（Embedding）
+  - 向量检索（Similarity Search）
+  - 百炼 LLM + RAG 生成
 - [ ] CI/CD 流水线（GitHub Actions）
 - [ ] 监控 & 日志
-- [ ] 阿里云部署（ECS/FC）
-- [ ] HTTPS 配置
+
+**RAG 方案**: 文档 → Embedding → pgvector → LangChain Retriever → 百炼 LLM
 
 ---
 
@@ -234,13 +241,14 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 | `chat-header.tsx` | `ChatHeader.tsx` | ✅ 完成 |
 | `greeting.tsx` | `Greeting.tsx` | ✅ 完成 |
 | `messages.tsx` | `Messages.tsx` | ✅ 完成 |
+| `message.tsx` | `Message.tsx` | ✅ 完成 |
 | `input.tsx` | `MultimodalInput.tsx` | ✅ 完成 |
+| `tool-result.tsx` | `ToolResult.tsx` | ✅ **新建** |
 
 ### 需完善组件 🔄
 
 | Vercel 组件 | 本项目组件 | 待办 |
 |-------------|------------|------|
-| `message.tsx` | `Message.tsx` | 操作按钮 + 流式动画 |
 | `model-selector.tsx` | `ModelSelector.tsx` | API 联动 |
 | `artifact.tsx` | `ArtifactPanel.tsx` | 交互完善 |
 
@@ -248,7 +256,6 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 
 | Vercel 组件 | 作用 | 优先级 |
 |-------------|------|--------|
-| `tool-result.tsx` | 工具调用结果展示 | 🔴 高 |
 | `suggested-actions.tsx` | 快捷提问按钮 | 🟡 中 |
 
 ---
@@ -267,6 +274,7 @@ src/
 │   │   ├── ChatContainer.tsx
 │   │   ├── Messages.tsx
 │   │   ├── Message.tsx
+│   │   ├── ToolResult.tsx   # ✅ 新建
 │   │   ├── Greeting.tsx
 │   │   ├── MultimodalInput.tsx
 │   │   ├── ModelSelector.tsx
@@ -344,4 +352,4 @@ docker-compose up --build
 
 ---
 
-*最后更新: 2026-04-06*
+*最后更新: 2026-04-07*

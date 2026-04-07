@@ -10,7 +10,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Messages } from './Messages';
 import { MultimodalInput } from './MultimodalInput';
 import { ArtifactPanel } from './ArtifactPanel';
-import { AIAuraVisualizer } from '@/components/visual/AIAuraVisualizer';
+
 import { useChatStream } from '@/hooks/useChatStream';
 import { useSessionSync } from '@/hooks/useSessionSync';
 import { useChatStore } from '@/store/chatStore';
@@ -30,7 +30,7 @@ interface ChatContainerProps {
 }
 
 export function ChatContainer({ sessionId }: ChatContainerProps) {
-  const { sendMessage, cancelStream } = useChatStream();
+  const { sendMessage, regenerate, editAndResend, cancelStream } = useChatStream();
   const { messages, isLoading } = useChatStore();
   const { switchSession, sessions } = useSessionStore();
   const [artifact, setArtifact] = useState<Artifact | null>(null);
@@ -78,19 +78,26 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setArtifact(null);
   }, []);
 
+  const handleEdit = useCallback((messageId: string, newContent: string) => {
+    editAndResend(messageId, newContent);
+  }, [editAndResend]);
+
+  const handleRegenerate = useCallback(() => {
+    regenerate();
+  }, [regenerate]);
+
   return (
     <div className="flex h-full">
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative min-w-0">
-        {/* Canvas 2D AI 光环可视化 - 保留亮点 */}
-        <AIAuraVisualizer />
-        
         {/* 消息列表 */}
         <Messages
           messages={messages}
           isLoading={isLoading}
           onExampleClick={handleExampleClick}
           onArtifactClick={handleArtifactClick}
+          onEdit={handleEdit}
+          onRegenerate={handleRegenerate}
         />
         
         {/* 输入区域 */}

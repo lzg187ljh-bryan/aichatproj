@@ -10,6 +10,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ModelSelector, type ModelId, BAILIAN_MODELS } from './ModelSelector';
+import { useChatStore } from '@/store/chatStore';
 import { Send, Square, Paperclip, Mic } from 'lucide-react';
 
 interface MultimodalInputProps {
@@ -26,7 +27,7 @@ export function MultimodalInput({
   disabled = false,
 }: MultimodalInputProps) {
   const [input, setInput] = useState('');
-  const [model, setModel] = useState<ModelId>('qwen3.5-plus');
+  const { selectedModel, setSelectedModel } = useChatStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -65,8 +66,8 @@ export function MultimodalInput({
     [handleSubmit]
   );
 
-  const selectedModel = BAILIAN_MODELS.find((m) => m.id === model);
-  const supportsImage = selectedModel?.input?.includes('image') ?? false;
+  const selectedModelData = BAILIAN_MODELS.find((m) => m.id === selectedModel);
+  const supportsImage = selectedModelData?.input?.includes('image') ?? false;
 
   return (
     <div className="border-t bg-background p-4">
@@ -110,7 +111,10 @@ export function MultimodalInput({
 
             {/* Right: Model selector & Send */}
             <div className="flex items-center gap-2">
-              <ModelSelector value={model} onChange={setModel} />
+              <ModelSelector 
+                value={selectedModel as ModelId} 
+                onChange={(m) => setSelectedModel(m)} 
+              />
               
               {isLoading ? (
                 <Button

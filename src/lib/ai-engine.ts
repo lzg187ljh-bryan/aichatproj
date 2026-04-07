@@ -13,19 +13,39 @@ import {
   generateObject,
   tool,
 } from 'ai';
-import { deepseek } from '@ai-sdk/deepseek';
+import { createOpenAI } from '@ai-sdk/openai';
 
 // ==================== 手动切换 (不用环境变量) ====================
 // 在这里切换 mock/real，修改后需重启服务
 const DEV_MODE: 'mock' | 'real' = 'real';  // ⚠️ 手动切换
 // ===============================================================
 
-// 模型配置
-export type ModelType = 'deepseek-chat' | 'deepseek-coder';
+// 百炼 OpenAI 兼容 Provider
+const bailian = createOpenAI({
+  apiKey: process.env.BAILIAN_API_KEY || '',
+  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+});
+
+// 模型配置 - 百炼模型
+export type ModelType = 
+  | 'qwen-plus'           // Qwen 3.5 Plus
+  | 'qwen-max'            // Qwen 3 Max
+  | 'qwen-coder-plus'     // Qwen 3 Coder Plus
+  | 'qwen-coder-next'     // Qwen 3 Coder Next
+  | 'kimi-k2.5'           // Kimi K2.5
+  | 'glm-5'               // GLM 5
+  | 'glm-4.7'             // GLM 4.7
+  | 'minimax-m2.5';       // MiniMax M2.5
 
 const MODELS = {
-  'deepseek-chat': deepseek('deepseek-chat'),
-  'deepseek-coder': deepseek('deepseek-coder'),
+  'qwen-plus': bailian('qwen-plus'),
+  'qwen-max': bailian('qwen-max-2026-01-23'),
+  'qwen-coder-plus': bailian('qwen-coder-plus'),
+  'qwen-coder-next': bailian('qwen-coder-next'),
+  'kimi-k2.5': bailian('kimi-k2.5'),
+  'glm-5': bailian('glm-5'),
+  'glm-4.7': bailian('glm-4.7'),
+  'minimax-m2.5': bailian('minimax-m2.5'),
 };
 
 // 工具定义类型
@@ -112,7 +132,7 @@ export async function generateAI_Text(
     };
   }
 
-  const model = MODELS[options?.model || 'deepseek-chat'];
+  const model = MODELS[options?.model || 'qwen-plus'];
   
   const result = await generateText({
     model,
@@ -143,8 +163,8 @@ export function streamAI_Text(
     return mockStream(messages[messages.length - 1]?.content || '');
   }
 
-  // real 模式
-  const model = MODELS[options?.model || 'deepseek-chat'];
+  // real 模式 - 使用百炼模型
+  const model = MODELS[options?.model || 'qwen-plus'];
 
   // 调用 Vercel AI SDK
   const result = streamText({
@@ -178,7 +198,7 @@ export async function generateAI_Object(
     };
   }
 
-  const model = MODELS[options?.model || 'deepseek-chat'];
+  const model = MODELS[options?.model || 'qwen-plus'];
 
   const result = await generateObject({
     model,
@@ -250,7 +270,7 @@ export function streamAI_WithTools(
     systemPrompt?: string;
   }
 ) {
-  const model = MODELS[options?.model || 'deepseek-chat'];
+  const model = MODELS[options?.model || 'qwen-plus'];
 
   return streamText({
     model,

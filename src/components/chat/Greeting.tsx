@@ -40,14 +40,14 @@ const EXAMPLE_PROMPTS = [
 
 export function Greeting({ onExampleClick }: GreetingProps) {
   return (
-    <div className="relative flex flex-col items-center justify-center h-full px-4 py-8 overflow-hidden">
-      {/* 3D WebGL 粒子球背景 */}
-      <div className="absolute inset-0 opacity-60">
-        <ParticleSphere />
-      </div>
-      
-      {/* Content - 相对定位，在粒子球上方 */}
+    <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
+      {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
+        {/* 3D WebGL 粒子球 - 在标题上方 */}
+        <div className="relative w-[300px] h-[300px] mb-4 pointer-events-none mx-auto">
+          <ParticleSphere />
+        </div>
+        
         {/* Main Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold tracking-tight mb-3">

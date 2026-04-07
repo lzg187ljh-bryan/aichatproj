@@ -9,7 +9,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
-import { streamAI_Text } from '@/lib/ai-engine';
+import { streamAI_Text, type ModelType } from '@/lib/ai-engine';
 
 // Types for incoming messages
 interface ChatMessage {
@@ -21,6 +21,7 @@ interface ChatRequestBody {
   messages: ChatMessage[];
   conversationId?: string;
   newConversationTitle?: string;
+  model?: string;  // 百炼模型 ID
 }
 
 // Check if using mock mode (外层控制)
@@ -159,7 +160,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { messages, conversationId, newConversationTitle } = await req.json() as ChatRequestBody;
+    const { messages, conversationId, newConversationTitle, model } = await req.json() as ChatRequestBody;
 
     let convId = conversationId;
 
@@ -228,9 +229,10 @@ export async function POST(req: Request) {
       });
     }
 
-    // Real AI mode - 调用 ai-engine.ts (Vercel AI SDK)
+    // Real AI mode - 调用 ai-engine.ts (Vercel AI SDK + 百炼)
     const result = streamAI_Text(
-      messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      { model: (model || 'qwen-plus') as ModelType }  // 传入选择的百炼模型
     ) as { textStream: AsyncIterable<string> };
 
     // 流式响应

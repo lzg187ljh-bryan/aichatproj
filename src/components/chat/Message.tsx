@@ -10,23 +10,47 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { Copy, Check, Pencil, RotateCcw, Code } from 'lucide-react';
+import { ToolResultList } from './ToolResult';
+import { Copy, Check, Pencil, RotateCcw, Code, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import type { Message } from '@/core/types/message';
 import { cn } from '@/lib/utils';
 
 interface MessageProps {
   message: Message;
   onArtifactClick?: (artifact: { id: string; type: 'code' | 'document'; title: string; content: string; language?: string }) => void;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerate?: () => void;
+  isLastMessage?: boolean;
 }
 
-export function Message({ message, onArtifactClick }: MessageProps) {
+export function Message({ message, onArtifactClick, onEdit, onRegenerate, isLastMessage }: MessageProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
   const isUser = message.role === 'user';
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleEditClick = () => {
+    setEditContent(message.content);
+    setIsEditing(true);
+  };
+
+  const handleEditSave = () => {
+    if (onEdit && editContent.trim() && editContent !== message.content) {
+      onEdit(message.id, editContent.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    setEditContent(message.content);
   };
 
   // Extract code blocks for artifact detection
@@ -71,9 +95,36 @@ export function Message({ message, onArtifactClick }: MessageProps) {
           )}
         >
           {isUser ? (
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            isEditing ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="min-h-[60px] bg-background text-foreground resize-none"
+                  autoFocus
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={handleEditCancel}>
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleEditSave}>
+                    <Check className="h-3 w-3 mr-1" />
+                    Send
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            )
           ) : (
-            <MarkdownRenderer message={message} />
+            <div className="space-y-3">
+              <MarkdownRenderer message={message} />
+              {/* Tool Calls */}
+              {message.toolCalls && message.toolCalls.length > 0 && (
+                <ToolResultList toolCalls={message.toolCalls} />
+              )}
+            </div>
           )}
         </div>
 
@@ -97,8 +148,8 @@ export function Message({ message, onArtifactClick }: MessageProps) {
             )}
           </Button>
           
-          {isUser && (
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+          {isUser && !isEditing && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleEditClick}>
               <Pencil className="h-3 w-3" />
             </Button>
           )}
@@ -126,8 +177,8 @@ export function Message({ message, onArtifactClick }: MessageProps) {
             </Button>
           )}
           
-          {!isUser && (
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+          {!isUser && isLastMessage && onRegenerate && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRegenerate}>
               <RotateCcw className="h-3 w-3" />
             </Button>
           )}

@@ -16,7 +16,7 @@ export interface Session {
   updatedAt: number;
 }
 
-interface SessionState {
+export interface SessionState {
   sessions: Session[];
   currentSessionId: string | null;
   

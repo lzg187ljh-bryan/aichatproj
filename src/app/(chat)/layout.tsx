@@ -23,8 +23,8 @@ export default function ChatLayout({
       </Suspense>
       
       {/* Center + Right: Main Area */}
-      <SidebarInset className="flex flex-col">
-        {/* Header */}
+      <SidebarInset className="flex flex-col overflow-hidden">
+        {/* Header - 非 sticky，正常流式布局 */}
         <ChatHeader />
         
         {/* Main Content Area */}

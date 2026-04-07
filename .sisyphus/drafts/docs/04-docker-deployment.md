@@ -220,8 +220,6 @@ redis:
 
 ---
 
-## 面试话术
-
 > "我使用 Docker 多阶段构建将 Next.js 镜像优化到 200MB 以内，Nginx 配置反向代理和静态资源缓存，添加了安全响应头（CSP、HSTS）。生产环境可配置 SSL 证书实现 HTTPS 访问，多实例部署时预留了负载均衡和 Redis Session 共享能力。"
 
 ---

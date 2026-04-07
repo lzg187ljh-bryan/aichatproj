@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^2.0.26",
-    "@ai-sdk/openai": "^3.0.49",
+    "@ai-sdk/openai": "^3.0.51",
     "@ai-sdk/openai-compatible": "^2.0.37",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@radix-ui/react-avatar": "^1.1.11",

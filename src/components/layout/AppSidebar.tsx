@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -21,6 +21,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarRail,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +37,7 @@ import {
   Database,
   Zap,
   ChevronDown,
+  Trash,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -46,6 +49,7 @@ import { useSessionStore, type Session } from '@/store/sessionStore';
 import { useChatStore } from '@/store/chatStore';
 import { LoginButton } from '@/components/auth/LoginButton';
 import { createBrowserClient } from '@supabase/ssr';
+
 
 export function AppSidebar() {
   const router = useRouter();
@@ -200,29 +204,108 @@ export function AppSidebar() {
     router.push(`/chat/${id}`);
   }, [switchSession, router]);
 
+  // Group sessions by date
+  const groupedSessions = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    return {
+      today: sessions.filter(s => s.updatedAt >= today.getTime()),
+      yesterday: sessions.filter(s => {
+        const date = new Date(s.updatedAt);
+        return date >= yesterday && date < today;
+      }),
+      last7Days: sessions.filter(s => {
+        const date = new Date(s.updatedAt);
+        return date >= last7Days && date < yesterday;
+      }),
+      older: sessions.filter(s => {
+        const date = new Date(s.updatedAt);
+        return date < last7Days;
+      }),
+    };
+  }, [sessions]);
+
+  // Render a single session item
+  const renderSessionItem = (session: Session) => (
+    <SidebarMenuItem key={session.id}>
+      {editingId === session.id ? (
+        <div className="flex gap-2 w-full">
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={submitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitRename();
+              if (e.key === 'Escape') setEditingId(null);
+            }}
+            className="h-7"
+            autoFocus
+          />
+        </div>
+      ) : (
+        <SidebarMenuButton
+          isActive={session.id === currentSessionId}
+          onClick={() => handleSelect(session.id)}
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span className="truncate">{session.name}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-auto opacity-0 group-hover:opacity-100 hover:bg-accent rounded p-1">
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => startRename(session)}>
+                <Edit2 className="mr-2 h-3 w-3" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleDelete(session.id)}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-3 w-3" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuButton>
+      )}
+    </SidebarMenuItem>
+  );
+
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       {/* Header */}
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link href="/">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
-                    AI
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold">AI Chat</span>
-                  <span className="text-xs text-muted-foreground">Interview Tutor</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        {/* Toggle + Logo */}
+        <div className="flex items-center gap-1 px-1">
+          <SidebarTrigger />
+          <SidebarMenu className="flex-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link href="/">
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+                      AI
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-0.5 leading-none">
+                    <span className="font-semibold">AI Chat</span>
+                    <span className="text-xs text-muted-foreground">AI Assistant</span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
 
-        {/* New Chat Button */}
+        {/* Action Buttons */}
         {isCreating ? (
           <div className="flex gap-2 p-2">
             <Input
@@ -241,81 +324,94 @@ export function AppSidebar() {
             </Button>
           </div>
         ) : (
-          <Button
-            onClick={() => setIsCreating(true)}
-            className="w-full m-2"
-            variant="default"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Chat
-          </Button>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setIsCreating(true)}
+                tooltip="New Chat"
+              >
+                <Plus className="h-4 w-4" />
+                <span>New Chat</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {sessions.length > 0 && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => {
+                    if (confirm('Delete all chats? This cannot be undone.')) {
+                      sessions.forEach(s => deleteSession(s.id));
+                    }
+                  }}
+                  tooltip="Delete all"
+                >
+                  <Trash className="h-4 w-4" />
+                  <span>Delete all</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+          </SidebarMenu>
         )}
       </SidebarHeader>
 
       <SidebarSeparator />
 
-      {/* Chat List */}
+      {/* Chat List with Groups */}
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Chats</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sessions.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8 text-sm px-2">
-                  No chats yet. Start a new conversation!
-                </div>
-              ) : (
-                sessions.map((session) => (
-                  <SidebarMenuItem key={session.id}>
-                    {editingId === session.id ? (
-                      <div className="flex gap-2 w-full">
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onBlur={submitRename}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') submitRename();
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          className="h-7"
-                          autoFocus
-                        />
-                      </div>
-                    ) : (
-                      <SidebarMenuButton
-                        isActive={session.id === currentSessionId}
-                        onClick={() => handleSelect(session.id)}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        <span className="truncate">{session.name}</span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="ml-auto opacity-0 group-hover:opacity-100 hover:bg-accent rounded p-1">
-                              <ChevronDown className="h-3 w-3" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => startRename(session)}>
-                              <Edit2 className="mr-2 h-3 w-3" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(session.id)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-3 w-3" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                ))
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {sessions.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8 text-sm px-2">
+            No chats yet. Start a new conversation!
+          </div>
+        ) : (
+          <>
+            {/* Today */}
+            {groupedSessions.today.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Today</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedSessions.today.map((session) => renderSessionItem(session))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+            
+            {/* Yesterday */}
+            {groupedSessions.yesterday.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Yesterday</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedSessions.yesterday.map((session) => renderSessionItem(session))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+            
+            {/* Last 7 Days */}
+            {groupedSessions.last7Days.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Last 7 Days</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedSessions.last7Days.map((session) => renderSessionItem(session))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+            
+            {/* Older */}
+            {groupedSessions.older.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Older</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedSessions.older.map((session) => renderSessionItem(session))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+          </>
+        )}
       </SidebarContent>
 
       <SidebarSeparator />
@@ -362,6 +458,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
