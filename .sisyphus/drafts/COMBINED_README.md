@@ -68,7 +68,7 @@
 | 认证 | Supabase Auth (GitHub OAuth) | ✅ |
 | 数据库 | Supabase PostgreSQL | ✅ |
 | 部署 | Docker + Nginx | ✅ |
-| AI Provider | 阿里云百炼 | ✅ 已集成 |
+| AI Provider | 阿里云百炼 Coding Plan | ✅ 已集成 |
 
 ---
 
@@ -144,7 +144,7 @@ export const useChatStore = create<ChatState>()(
 
 ```
 Phase 0 (基础 UI 重构):  ██████████ 100% ✅
-Phase 1 (UI 全面同步):   █████████░  90% ← 百炼集成完成
+Phase 1 (UI 全面同步):   ██████████ 100% ✅ 百炼 API 已跑通
 Phase 2 (Agent 核心):     ░░░░░░░░░░   0%
 Phase 3 (工程化):         ░░░░░░░░░░   0%
 ```
@@ -198,13 +198,17 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 #### Step 4: Model Selector 联动 + 百炼集成 ✅ 完成
 - [x] 连接 ModelSelector 到 `useChatStream`
 - [x] 传递 `selectedModel` 到 API endpoint
-- [x] **替换 DeepSeek → 阿里云百炼**
-- [x] 支持 8 个百炼模型
-- [x] 未登录用户支持（本地存储，不存数据库）
+- [x] **替换 DeepSeek → 阿里云百炼 Coding Plan**
+- [x] 使用 OpenAI SDK 直接调用（非 @ai-sdk/openai）
+- [x] 配置 Coding Plan 专属端点 `coding.dashscope.aliyuncs.com/v1`
+- [x] 支持 6 个模型（glm-5/qwen-plus/qwen-max/qwen-coder-plus/deepseek-r1/deepseek-v3）
+- [x] 数据流：ModelSelector → chatStore → API → 百炼
 
 #### Step 5: Artifact Panel 完善 + Sidebar 未登录优化 ✅ 完成
 - [x] 完善 Artifact Panel 交互
 - [x] Sidebar 未登录状态优化（临时会话提示、历史隐藏）
+- [x] 未登录用户会话机制（不持久化到 localStorage）
+- [x] 响应式布局优化（Sidebar 默认折叠）
 - [ ] 添加代码复制功能
 - [ ] 添加文件类型标签
 
@@ -296,7 +300,7 @@ src/
 │   └── message.ts         # ChatMessage 类型
 │
 ├── hooks/                 # 自定义 Hooks
-│   ├── useChatStream.ts   # SSE + 双缓冲 (核心)
+│   ├── useChatStream.ts   # SSE + 双缓冲 + OpenAI SDK (核心)
 │   ├── useSessionSync.ts  # 会话同步
 │   └── useAutoScroll.ts   # 自动滚动
 │
@@ -310,7 +314,7 @@ src/
 │   └── markdownWorker.ts  # Markdown 后台解析
 │
 ├── lib/
-│   ├── ai-engine.ts       # AI 引擎 (待替换 DeepSeek)
+│   ├── ai-engine.ts       # AI 引擎 (OpenAI SDK + 百炼)
 │   └── supabase-server.ts # 数据库/认证
 │
 └── utils/                 # 工具函数
