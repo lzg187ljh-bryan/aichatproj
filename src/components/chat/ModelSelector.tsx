@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
 
-// 百炼模型配置（与 ai-engine.ts 中的 MODELS 对应）
+// Coding Plan 模型配置（与 ai-engine.ts 中的 MODELS 对应）
+// 文档: https://help.aliyun.com/zh/model-studio/use-coding-plan-in-ai-tools/
 export const BAILIAN_MODELS: Array<{
   id: string;
   name: string;
@@ -26,51 +27,39 @@ export const BAILIAN_MODELS: Array<{
   input: string[];
 }> = [
   {
+    id: 'glm-5',
+    name: 'GLM 5',
+    description: '智谱模型，默认推荐',
+    input: ['text'],
+  },
+  {
     id: 'qwen-plus',
     name: 'Qwen Plus',
-    description: '快速响应，适合日常对话',
-    input: ['text', 'image'],
+    description: '通义千问，快速响应',
+    input: ['text'],
   },
   {
     id: 'qwen-max',
     name: 'Qwen Max',
-    description: '最强性能，复杂任务首选',
+    description: '通义千问，最强性能',
     input: ['text'],
   },
   {
     id: 'qwen-coder-plus',
     name: 'Qwen Coder Plus',
-    description: '代码助手，高性价比',
+    description: '代码专家，编程首选',
     input: ['text'],
   },
   {
-    id: 'qwen-coder-next',
-    name: 'Qwen Coder Next',
-    description: '代码专家，编程最佳',
+    id: 'deepseek-r1',
+    name: 'DeepSeek R1',
+    description: '深度推理，思维链',
     input: ['text'],
   },
   {
-    id: 'kimi-k2.5',
-    name: 'Kimi K2.5',
-    description: '长上下文，文档理解',
-    input: ['text', 'image'],
-  },
-  {
-    id: 'glm-5',
-    name: 'GLM 5',
-    description: '智谱模型，平衡性能',
-    input: ['text'],
-  },
-  {
-    id: 'glm-4.7',
-    name: 'GLM 4.7',
-    description: '智谱模型，稳定版本',
-    input: ['text'],
-  },
-  {
-    id: 'minimax-m2.5',
-    name: 'MiniMax M2.5',
-    description: 'MiniMax 出品',
+    id: 'deepseek-v3',
+    name: 'DeepSeek V3',
+    description: 'DeepSeek，通用对话',
     input: ['text'],
   },
 ];

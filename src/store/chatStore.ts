@@ -29,7 +29,7 @@ export interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   isLoading: false,
-  selectedModel: 'qwen-plus',  // 默认使用 Qwen Plus
+  selectedModel: 'glm-5',  // 默认使用 Qwen Plus
 
   setMessages: (messages) => {
     set({ messages });

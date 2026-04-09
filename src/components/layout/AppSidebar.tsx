@@ -49,6 +49,8 @@ import { useSessionStore, type Session } from '@/store/sessionStore';
 import { useChatStore } from '@/store/chatStore';
 import { LoginButton } from '@/components/auth/LoginButton';
 import { createBrowserClient } from '@supabase/ssr';
+import type { User } from '@supabase/supabase-js';
+import { Lock, Clock } from 'lucide-react';
 
 
 export function AppSidebar() {
@@ -68,11 +70,30 @@ export function AppSidebar() {
   const [isCreating, setIsCreating] = useState(false);
   const [newChatName, setNewChatName] = useState('');
   const [hydrated, setHydrated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const loadedRef = useRef(false);
 
   // Wait for hydration
   useEffect(() => {
     setHydrated(true);
+  }, []);
+
+  // 监听登录状态
+  useEffect(() => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Load conversations from database (only once)
@@ -86,13 +107,15 @@ export function AppSidebar() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+      
+      setUser(currentUser);
 
       const { data: conversations } = await supabase
         .from('conversations')
         .select('id, title, created_at, updated_at')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .order('updated_at', { ascending: false });
 
       const currentState = useSessionStore.getState();
@@ -248,17 +271,25 @@ export function AppSidebar() {
           />
         </div>
       ) : (
-        <SidebarMenuButton
-          isActive={session.id === currentSessionId}
-          onClick={() => handleSelect(session.id)}
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span className="truncate">{session.name}</span>
+        <div className="flex items-center w-full group">
+          <SidebarMenuButton
+            isActive={session.id === currentSessionId}
+            onClick={() => handleSelect(session.id)}
+            className="flex-1"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="truncate">{session.name}</span>
+          </SidebarMenuButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="ml-auto opacity-0 group-hover:opacity-100 hover:bg-accent rounded p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 ml-auto opacity-0 group-hover:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <ChevronDown className="h-3 w-3" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => startRename(session)}>
@@ -274,7 +305,7 @@ export function AppSidebar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </SidebarMenuButton>
+        </div>
       )}
     </SidebarMenuItem>
   );
@@ -334,7 +365,8 @@ export function AppSidebar() {
                 <span>New Chat</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {sessions.length > 0 && (
+            {/* 登录后才显示 "Delete all" */}
+            {user && sessions.length > 0 && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => {
@@ -357,7 +389,46 @@ export function AppSidebar() {
 
       {/* Chat List with Groups */}
       <SidebarContent>
-        {sessions.length === 0 ? (
+        {!user ? (
+          // 未登录状态：显示临时会话提示
+          <div className="px-4 py-6">
+            <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
+              <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm font-medium text-muted-foreground mb-1">
+                Temporary Session
+              </p>
+              <p className="text-xs text-muted-foreground/80">
+                Your chats are stored locally and will be lost when you clear browser data.
+              </p>
+              <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/20">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Sign in to save your chat history
+                </p>
+              </div>
+            </div>
+            {/* 未登录时只显示当前临时会话（如果有） */}
+            {sessions.length > 0 && (
+              <div className="mt-4">
+                <SidebarGroupLabel className="text-muted-foreground/60">
+                  Current Session
+                </SidebarGroupLabel>
+                <SidebarMenu>
+                  {sessions.slice(0, 1).map((session) => (
+                    <SidebarMenuItem key={session.id}>
+                      <SidebarMenuButton
+                        isActive={session.id === currentSessionId}
+                        onClick={() => handleSelect(session.id)}
+                      >
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate text-muted-foreground">{session.name}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </div>
+            )}
+          </div>
+        ) : sessions.length === 0 ? (
           <div className="text-center text-muted-foreground py-8 text-sm px-2">
             No chats yet. Start a new conversation!
           </div>
@@ -422,10 +493,11 @@ export function AppSidebar() {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/settings">
+              <SidebarMenuButton asChild disabled={!user}>
+                <Link href={user ? "/settings" : "#"}>
                   <Settings className="h-4 w-4" />
                   <span>Settings / Roles</span>
+                  {!user && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -453,8 +525,16 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <LoginButton />
           </SidebarMenuItem>
+          {!user && (
+            <SidebarMenuItem className="px-2 py-1">
+              <p className="text-xs text-muted-foreground text-center">
+                🔒 Sign in to sync your chats
+              </p>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem className="text-xs text-muted-foreground text-center">
             {sessions.length} chat{sessions.length !== 1 ? 's' : ''}
+            {!user && sessions.length > 0 && ' (local)'}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

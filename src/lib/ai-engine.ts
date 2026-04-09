@@ -1,5 +1,5 @@
 /**
- * AI Engine - Vercel AI SDK 封装
+ * AI Engine - OpenAI SDK 封装
  * 提供统一的 AI 调用接口，支持多模型和工具调用
  * 
  * 使用方式:
@@ -7,46 +7,29 @@
  * - ai-engine 内部通过 DEV_MODE 手动切换 mock/real
  */
 
-import { 
-  generateText, 
-  streamText, 
-  generateObject,
-  tool,
-} from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import OpenAI from 'openai';
 
 // ==================== 手动切换 (不用环境变量) ====================
 // 在这里切换 mock/real，修改后需重启服务
 const DEV_MODE: 'mock' | 'real' = 'real';  // ⚠️ 手动切换
 // ===============================================================
 
-// 百炼 OpenAI 兼容 Provider
-const bailian = createOpenAI({
+// OpenAI 客户端 - Coding Plan 专属配置
+// Coding Plan 专属端点 (sk-sp- 开头的 API Key 必须使用此端点)
+const openai = new OpenAI({
   apiKey: process.env.BAILIAN_API_KEY || '',
-  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  baseURL: 'https://coding.dashscope.aliyuncs.com/v1',
 });
 
-// 模型配置 - 百炼模型
+// 模型配置 - Coding Plan 支持的模型
+// 注意：Coding Plan 只支持特定模型，需要查阅官方文档确认
 export type ModelType = 
-  | 'qwen-plus'           // Qwen 3.5 Plus
-  | 'qwen-max'            // Qwen 3 Max
-  | 'qwen-coder-plus'     // Qwen 3 Coder Plus
-  | 'qwen-coder-next'     // Qwen 3 Coder Next
-  | 'kimi-k2.5'           // Kimi K2.5
-  | 'glm-5'               // GLM 5
-  | 'glm-4.7'             // GLM 4.7
-  | 'minimax-m2.5';       // MiniMax M2.5
-
-const MODELS = {
-  'qwen-plus': bailian('qwen-plus'),
-  'qwen-max': bailian('qwen-max-2026-01-23'),
-  'qwen-coder-plus': bailian('qwen-coder-plus'),
-  'qwen-coder-next': bailian('qwen-coder-next'),
-  'kimi-k2.5': bailian('kimi-k2.5'),
-  'glm-5': bailian('glm-5'),
-  'glm-4.7': bailian('glm-4.7'),
-  'minimax-m2.5': bailian('minimax-m2.5'),
-};
+  | 'glm-5'               // 智谱 GLM-5
+  | 'qwen-plus'           // 通义千问 Plus
+  | 'qwen-max'            // 通义千问 Max
+  | 'qwen-coder-plus'     // 通义千问 Coder Plus
+  | 'deepseek-r1'         // DeepSeek R1
+  | 'deepseek-v3';        // DeepSeek V3
 
 // 工具定义类型
 export interface AI_Tool {
@@ -125,25 +108,27 @@ export async function generateAI_Text(
     temperature?: number;
   }
 ): Promise<{ text: string; finishReason: string }> {
-  if (DEV_MODE) {
+  if (DEV_MODE === 'mock') {
     return {
       text: mockResponse(messages[messages.length - 1]?.content || ''),
       finishReason: 'stop',
     };
   }
 
-  const model = MODELS[options?.model || 'qwen-plus'];
-  
-  const result = await generateText({
+  const model = options?.model || 'glm-5';
+
+  const completion = await openai.chat.completions.create({
     model,
-    messages: messages as any,
-    system: options?.systemPrompt,
+    messages: [
+      ...(options?.systemPrompt ? [{ role: 'system' as const, content: options.systemPrompt }] : []),
+      ...messages,
+    ] as OpenAI.Chat.ChatCompletionMessageParam[],
     temperature: options?.temperature ?? 0.7,
   });
 
   return {
-    text: result.text,
-    finishReason: result.finishReason as string,
+    text: completion.choices[0]?.message?.content || '',
+    finishReason: completion.choices[0]?.finish_reason || 'stop',
   };
 }
 
@@ -158,26 +143,38 @@ export function streamAI_Text(
     temperature?: number;
   }
 ) {
-  // 判断是否 mock
+  // Mock mode
   if (DEV_MODE === 'mock') {
     return mockStream(messages[messages.length - 1]?.content || '');
   }
 
-  // real 模式 - 使用百炼模型
-  const model = MODELS[options?.model || 'qwen-plus'];
+  // Real mode - 使用 OpenAI SDK 流式调用
+  const model = options?.model || 'glm-5';
 
-  // 调用 Vercel AI SDK
-  const result = streamText({
+  const streamPromise = openai.chat.completions.create({
     model,
-    messages: messages as any,
-    system: options?.systemPrompt,
+    messages: [
+      ...(options?.systemPrompt ? [{ role: 'system' as const, content: options.systemPrompt }] : []),
+      ...messages,
+    ] as OpenAI.Chat.ChatCompletionMessageParam[],
     temperature: options?.temperature ?? 0.7,
+    stream: true,
   });
 
-  // 返回包含 textStream 的对象
-  return {
-    textStream: result.textStream,
+  // 转换为 AsyncIterable<string>
+  const textStream: AsyncIterable<string> = {
+    [Symbol.asyncIterator]: async function* () {
+      const stream = await streamPromise;
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          yield content;
+        }
+      }
+    }
   };
+
+  return { textStream };
 }
 
 /**
@@ -191,25 +188,29 @@ export async function generateAI_Object(
     systemPrompt?: string;
   }
 ): Promise<{ object: unknown; finishReason: string }> {
-  if (DEV_MODE) {
+  if (DEV_MODE === 'mock') {
     return {
       object: {},
       finishReason: 'stop',
     };
   }
 
-  const model = MODELS[options?.model || 'qwen-plus'];
+  const model = options?.model || 'glm-5';
 
-  const result = await generateObject({
+  const completion = await openai.chat.completions.create({
     model,
-    schema: schema as any,
-    messages: messages as any,
-    system: options?.systemPrompt,
+    messages: [
+      ...(options?.systemPrompt ? [{ role: 'system' as const, content: options.systemPrompt }] : []),
+      ...messages,
+    ] as OpenAI.Chat.ChatCompletionMessageParam[],
+    response_format: { type: 'json_object' },
   });
 
+  const content = completion.choices[0]?.message?.content || '{}';
+
   return {
-    object: result.object,
-    finishReason: result.finishReason as string,
+    object: JSON.parse(content),
+    finishReason: completion.choices[0]?.finish_reason || 'stop',
   };
 }
 
@@ -217,11 +218,11 @@ export async function generateAI_Object(
 
 function mockResponse(userMessage: string): string {
   const responses = [
-    `我收到了你的消息: "${userMessage.slice(0, 30)}..."\n\n这是一个 Mock 模式的响应。在真实模式下，我将调用 DeepSeek API 进行回答。\n\n---\n\n*Mock response generated at ${new Date().toLocaleTimeString()}*`,
-    
+    `我收到了你的消息: "${userMessage.slice(0, 30)}..."\n\n这是一个 Mock 模式的响应。在真实模式下，我将调用 AI API 进行回答。\n\n---\n\n*Mock response generated at ${new Date().toLocaleTimeString()}*`,
+
     `感谢你的输入！这是模拟 AI 的回复。\n\n在生产环境中，这个回复会来自真实的 AI 模型。\n\n---\n\n*Generated at ${new Date().toISOString()}*`,
   ];
-  
+
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
@@ -229,8 +230,7 @@ function mockStream(userMessage: string): { textStream: AsyncIterable<string> } 
   const mockText = mockResponse(userMessage);
   const chunks = mockText.split('');
   let index = 0;
-  
-  // 使用闭包保存状态
+
   const asyncIterable: AsyncIterable<string> = {
     [Symbol.asyncIterator]() {
       return {
@@ -240,7 +240,7 @@ function mockStream(userMessage: string): { textStream: AsyncIterable<string> } 
               resolve({ done: true, value: undefined as unknown as string });
               return;
             }
-            
+
             setTimeout(() => {
               const value = chunks[index];
               index++;
@@ -256,28 +256,3 @@ function mockStream(userMessage: string): { textStream: AsyncIterable<string> } 
     textStream: asyncIterable,
   };
 }
-
-// ==================== 工具调用支持 ====================
-
-/**
- * 创建带有工具的流式生成
- */
-export function streamAI_WithTools(
-  messages: AIMessage[],
-  tools: Record<string, ReturnType<typeof tool>>,
-  options?: {
-    model?: ModelType;
-    systemPrompt?: string;
-  }
-) {
-  const model = MODELS[options?.model || 'qwen-plus'];
-
-  return streamText({
-    model,
-    messages: messages as any,
-    system: options?.systemPrompt,
-    tools,
-  });
-}
-
-export { tool };

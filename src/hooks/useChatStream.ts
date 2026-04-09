@@ -324,7 +324,7 @@ export function useChatStream() {
 
     // ===== 5. 调用后端 API =====
     // 获取当前选择的模型
-    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    const selectedModel = useChatStore.getState().selectedModel || 'glm-5';
     
     sendToBackend(
       [userMessage],                    // 只传用户消息
@@ -417,7 +417,7 @@ export function useChatStream() {
       setStreamRate(streamRateRef.current);
     }, 1000);
     
-    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    const selectedModel = useChatStore.getState().selectedModel || 'glm-5';
     
     sendToBackend(
       [lastUserMessage],
@@ -493,7 +493,7 @@ export function useChatStream() {
     
     // 使用更新后的消息
     const editedMessage = { ...messageToEdit, content: newContent };
-    const selectedModel = useChatStore.getState().selectedModel || 'qwen-plus';
+    const selectedModel = useChatStore.getState().selectedModel || 'glm-5';
     
     sendToBackend(
       [editedMessage],

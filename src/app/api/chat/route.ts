@@ -154,35 +154,38 @@ export async function POST(req: Request) {
   // 验证登录
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return Response.json({ error: 'Unauthorized', message: 'Please sign in to use the chat' }, { status: 401 });
-  }
+  
+  // 未登录用户：只返回 AI 响应，不存数据库
+  const isAnonymous = !user || authError != null;
 
   try {
     const { messages, conversationId, newConversationTitle, model } = await req.json() as ChatRequestBody;
 
     let convId = conversationId;
 
-    // 如果没有 conversationId，创建新对话
-    if (!convId) {
-      const title = newConversationTitle || (messages[0]?.content
-        ? generateTitle(String(messages[0].content))
-        : 'New Chat');
-      const conversation = await createConversation(user.id, title);
-      convId = conversation.id;
-    }
-
-    // 保存用户消息到数据库
+    // 提取最后一条用户消息
     const userMessages = messages.filter(m => m.role === 'user');
-    if (userMessages.length > 0 && convId) {
-      await addMessages(convId, userMessages.map(m => ({
-        role: m.role,
-        content: String(m.content),
-      })));
-    }
-
     const userMessage = userMessages[userMessages.length - 1]?.content || '';
+
+    // 登录用户：保存到数据库
+    if (!isAnonymous) {
+      // 如果没有 conversationId，创建新对话
+      if (!convId) {
+        const title = newConversationTitle || (messages[0]?.content
+          ? generateTitle(String(messages[0].content))
+          : 'New Chat');
+        const conversation = await createConversation(user.id, title);
+        convId = conversation.id;
+      }
+
+      // 保存用户消息到数据库
+      if (userMessages.length > 0 && convId) {
+        await addMessages(convId, userMessages.map(m => ({
+          role: m.role,
+          content: String(m.content),
+        })));
+      }
+    }
     const conversationIdForAI = convId || '';
 
     // Mock mode or real AI mode
@@ -203,8 +206,8 @@ export async function POST(req: Request) {
               // Send [DONE] signal
               controller.enqueue(encoder.encode('data: [DONE]\n\n'));
               
-              // Save to database after streaming
-              if (conversationIdForAI) {
+              // 登录用户：保存到数据库
+              if (conversationIdForAI && !isAnonymous) {
                 addAssistantMessage(conversationIdForAI, mockResponse).catch(console.error);
               }
               controller.close();
@@ -229,10 +232,10 @@ export async function POST(req: Request) {
       });
     }
 
-    // Real AI mode - 调用 ai-engine.ts (Vercel AI SDK + 百炼)
+    // Real AI mode - 调用 ai-engine.ts (OpenAI SDK + Coding Plan)
     const result = streamAI_Text(
       messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { model: (model || 'qwen-plus') as ModelType }  // 传入选择的百炼模型
+      { model: (model || 'glm-5') as ModelType }  // Coding Plan 默认模型
     ) as { textStream: AsyncIterable<string> };
 
     // 流式响应
@@ -253,8 +256,8 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
 
-          // 流结束后保存 AI 消息
-          if (aiContent.trim() && convId) {
+          // 登录用户：流结束后保存 AI 消息
+          if (aiContent.trim() && convId && !isAnonymous) {
             await addAssistantMessage(convId, aiContent.trim());
           }
         } catch (error) {

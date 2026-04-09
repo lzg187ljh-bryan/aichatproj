@@ -68,7 +68,7 @@
 | 认证 | Supabase Auth (GitHub OAuth) | ✅ |
 | 数据库 | Supabase PostgreSQL | ✅ |
 | 部署 | Docker + Nginx | ✅ |
-| AI Provider | DeepSeek | ⚠️ **待替换为百炼** |
+| AI Provider | 阿里云百炼 | ✅ 已集成 |
 
 ---
 
@@ -144,8 +144,8 @@ export const useChatStore = create<ChatState>()(
 
 ```
 Phase 0 (基础 UI 重构):  ██████████ 100% ✅
-Phase 1 (UI 全面同步):   ██████░░░░  60% ← 当前阶段
-Phase 2 (Agent 核心):     ██░░░░░░░░  10%
+Phase 1 (UI 全面同步):   █████████░  90% ← 百炼集成完成
+Phase 2 (Agent 核心):     ░░░░░░░░░░   0%
 Phase 3 (工程化):         ░░░░░░░░░░   0%
 ```
 
@@ -195,13 +195,16 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 - [x] 完善 `Message.tsx` 的 tool-call 渲染
 - [x] 添加工具执行状态动画（pending/running/completed/error）
 
-#### Step 4: Model Selector 联动 + 百炼集成
-- [ ] 连接 ModelSelector 到 `useChatStream`
-- [ ] 传递 `selectedModel` 到 API endpoint
-- [ ] **替换 DeepSeek → 阿里云百炼**
+#### Step 4: Model Selector 联动 + 百炼集成 ✅ 完成
+- [x] 连接 ModelSelector 到 `useChatStream`
+- [x] 传递 `selectedModel` 到 API endpoint
+- [x] **替换 DeepSeek → 阿里云百炼**
+- [x] 支持 8 个百炼模型
+- [x] 未登录用户支持（本地存储，不存数据库）
 
-#### Step 5: Artifact Panel 完善
-- [ ] 完善 Artifact Panel 交互
+#### Step 5: Artifact Panel 完善 + Sidebar 未登录优化 ✅ 完成
+- [x] 完善 Artifact Panel 交互
+- [x] Sidebar 未登录状态优化（临时会话提示、历史隐藏）
 - [ ] 添加代码复制功能
 - [ ] 添加文件类型标签
 
@@ -346,10 +349,10 @@ docker-compose up --build
 
 ## 🚧 当前阻塞点
 
-1. **AI Provider 硬编码** - `ai-engine.ts` 直接 import deepseek
+1. **百炼 API 测试** - baseUrl 已修复为 `coding.dashscope.aliyuncs.com/v1`，待验证
 2. **工具调用未跑通** - `streamAI_WithTools` 存在但 API 层未调用
 3. **多模态不支持** - ChatMessage 只有 `content: string`
 
 ---
 
-*最后更新: 2026-04-07*
+*最后更新: 2026-04-08*
