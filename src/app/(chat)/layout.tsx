@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { SidebarSkeleton } from '@/components/ui/SidebarSkeleton';
 import { ChatHeader } from '@/components/layout/ChatHeader';
+import { SessionInitializer } from '@/components/chat/SessionInitializer';
 
 export default function ChatLayout({
   children,
@@ -17,6 +18,9 @@ export default function ChatLayout({
 }) {
   return (
     <SidebarProvider>
+      {/* 初始化会话状态 */}
+      <SessionInitializer />
+      
       {/* Left: Sidebar */}
       <Suspense fallback={<SidebarSkeleton />}>
         <AppSidebar />

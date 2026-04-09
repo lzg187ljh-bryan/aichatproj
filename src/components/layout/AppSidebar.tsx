@@ -62,6 +62,8 @@ export function AppSidebar() {
     deleteSession,
     renameSession,
     switchSession,
+    setIsAuthenticated,
+    clearAllSessions,
   } = useSessionStore();
   const { setMessages } = useChatStore();
 
@@ -75,10 +77,13 @@ export function AppSidebar() {
 
   // Wait for hydration
   useEffect(() => {
-    setHydrated(true);
+    // 使用 requestAnimationFrame 避免同步 setState
+    requestAnimationFrame(() => {
+      setHydrated(true);
+    });
   }, []);
 
-  // 监听登录状态
+  // 监听登录状态并同步到 session store
   useEffect(() => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,14 +92,24 @@ export function AppSidebar() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
+      setIsAuthenticated(!!user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const isAuth = !!session?.user;
       setUser(session?.user ?? null);
+      setIsAuthenticated(isAuth);
+      
+      // 登录状态变化时：未登录则清空本地会话
+      if (!isAuth) {
+        clearAllSessions();
+        // 创建新的临时会话
+        createSession();
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [setIsAuthenticated, clearAllSessions, createSession]);
 
   // Load conversations from database (only once)
   useEffect(() => {
@@ -139,7 +154,7 @@ export function AppSidebar() {
             return {
               id: conv.id,
               name: conv.title,
-              messages: (messages || []).map((m: any) => ({
+              messages: (messages || []).map((m: { id: string; role: string; content: string; created_at: string }) => ({
                 id: m.id,
                 role: m.role as 'user' | 'assistant',
                 content: m.content,
@@ -356,15 +371,18 @@ export function AppSidebar() {
           </div>
         ) : (
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setIsCreating(true)}
-                tooltip="New Chat"
-              >
-                <Plus className="h-4 w-4" />
-                <span>New Chat</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {/* 未登录时隐藏 New Chat 按钮 */}
+            {user && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setIsCreating(true)}
+                  tooltip="New Chat"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>New Chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             {/* 登录后才显示 "Delete all" */}
             {user && sessions.length > 0 && (
               <SidebarMenuItem>
@@ -398,35 +416,14 @@ export function AppSidebar() {
                 Temporary Session
               </p>
               <p className="text-xs text-muted-foreground/80">
-                Your chats are stored locally and will be lost when you clear browser data.
+                Your chats are stored in memory only and will be lost when you refresh or close the page.
               </p>
               <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/20">
                 <p className="text-xs text-muted-foreground mb-2">
-                  Sign in to save your chat history
+                  🔒 Sign in to save your chat history permanently
                 </p>
               </div>
             </div>
-            {/* 未登录时只显示当前临时会话（如果有） */}
-            {sessions.length > 0 && (
-              <div className="mt-4">
-                <SidebarGroupLabel className="text-muted-foreground/60">
-                  Current Session
-                </SidebarGroupLabel>
-                <SidebarMenu>
-                  {sessions.slice(0, 1).map((session) => (
-                    <SidebarMenuItem key={session.id}>
-                      <SidebarMenuButton
-                        isActive={session.id === currentSessionId}
-                        onClick={() => handleSelect(session.id)}
-                      >
-                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                        <span className="truncate text-muted-foreground">{session.name}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </div>
-            )}
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center text-muted-foreground py-8 text-sm px-2">
