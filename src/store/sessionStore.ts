@@ -99,7 +99,7 @@ export const useSessionStore = create<SessionState>()(
         return newSession;
       },
 
-      deleteSession: (id: string) => {
+      deleteSession: async (id: string) => {
         const { isAuthenticated } = get();
         
         // 未登录用户：删除会话相当于清空当前临时会话
@@ -112,7 +112,30 @@ export const useSessionStore = create<SessionState>()(
           return;
         }
 
-        // 登录用户：正常删除
+        // 登录用户：先删除数据库中的会话
+        try {
+          const { createBrowserClient } = await import('@supabase/ssr');
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          
+          // 先删除关联的消息
+          await supabase
+            .from('messages')
+            .delete()
+            .eq('conversation_id', id);
+          
+          // 再删除会话
+          await supabase
+            .from('conversations')
+            .delete()
+            .eq('id', id);
+        } catch (error) {
+          console.error('Failed to delete session from database:', error);
+        }
+
+        // 然后更新本地状态
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
           let newCurrentId = state.currentSessionId;

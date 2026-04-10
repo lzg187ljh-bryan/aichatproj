@@ -35,11 +35,11 @@ export function Messages({
 
   // Wait for hydration to avoid flash of Greeting
   useEffect(() => {
-    // Short delay to allow messages to load from store
-    const timer = setTimeout(() => {
+    // 使用 requestAnimationFrame 确保在 React 渲染周期后检查
+    const rafId = requestAnimationFrame(() => {
       setHydrated(true);
-    }, 100);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   // Auto-scroll to bottom when new messages arrive

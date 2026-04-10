@@ -22,6 +22,7 @@ interface ChatRequestBody {
   conversationId?: string;
   newConversationTitle?: string;
   model?: string;  // 百炼模型 ID
+  isRegenerate?: boolean;  // 是否是重新生成（不保存用户消息）
 }
 
 // Check if using mock mode (外层控制)
@@ -136,6 +137,32 @@ async function addAssistantMessage(conversationId: string, content: string) {
 }
 
 /**
+ * Delete the last AI message in a conversation (for regenerate)
+ */
+async function deleteLastAssistantMessage(conversationId: string) {
+  const supabase = createAdminClient();
+  
+  // 找到最后一条 AI 消息
+  const { data: messages, error: fetchError } = await supabase
+    .from('messages')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .eq('role', 'assistant')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  
+  if (fetchError || !messages || messages.length === 0) return;
+  
+  // 删除该消息
+  const { error: deleteError } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messages[0].id);
+  
+  if (deleteError) throw deleteError;
+}
+
+/**
  * Generate mock AI response
  */
 function generateMockResponse(userMessage: string): string {
@@ -159,7 +186,7 @@ export async function POST(req: Request) {
   const isAnonymous = !user || authError != null;
 
   try {
-    const { messages, conversationId, newConversationTitle, model } = await req.json() as ChatRequestBody;
+    const { messages, conversationId, newConversationTitle, model, isRegenerate } = await req.json() as ChatRequestBody;
 
     let convId = conversationId;
 
@@ -178,8 +205,8 @@ export async function POST(req: Request) {
         convId = conversation.id;
       }
 
-      // 保存用户消息到数据库
-      if (userMessages.length > 0 && convId) {
+      // 保存用户消息到数据库（重新生成时不保存，因为用户消息已存在）
+      if (userMessages.length > 0 && convId && !isRegenerate) {
         await addMessages(convId, userMessages.map(m => ({
           role: m.role,
           content: String(m.content),
@@ -233,10 +260,16 @@ export async function POST(req: Request) {
     }
 
     // Real AI mode - 调用 ai-engine.ts (OpenAI SDK + Coding Plan)
-    const result = streamAI_Text(
-      messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { model: (model || 'glm-5') as ModelType }  // Coding Plan 默认模型
-    ) as { textStream: AsyncIterable<string> };
+    const aiMessages = messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    
+    // Debug: 打印请求信息
+    console.log('[API Chat] Request:', {
+      model: model || 'glm-5',
+      messageCount: aiMessages.length,
+      lastMessage: aiMessages[aiMessages.length - 1],
+    });
+    
+    const result = streamAI_Text(aiMessages, { model: (model || 'glm-5') as ModelType });
 
     // 流式响应
     const { textStream } = result;
@@ -256,8 +289,13 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
 
-          // 登录用户：流结束后保存 AI 消息
+          // 登录用户：流结束后处理 AI 消息
           if (aiContent.trim() && convId && !isAnonymous) {
+            // 如果是重新生成，先删除旧的 AI 消息
+            if (isRegenerate) {
+              await deleteLastAssistantMessage(convId);
+            }
+            // 保存新的 AI 消息
             await addAssistantMessage(convId, aiContent.trim());
           }
         } catch (error) {

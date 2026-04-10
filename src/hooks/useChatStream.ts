@@ -147,7 +147,8 @@ function sendToBackend(
   model: string,                               // AI 模型 ID
   onChunk: (chunk: string) => void,            // 字符块回调
   onDone: (conversationId: string | null) => void,  // 完成回调
-  onError: (error: Error) => void              // 错误回调
+  onError: (error: Error) => void,             // 错误回调
+  isRegenerate: boolean = false                // 是否是重新生成
 ): AbortController {
   // 创建 AbortController，用于取消请求
   const controller = new AbortController();
@@ -161,6 +162,7 @@ function sendToBackend(
       conversationId,
       newConversationTitle,
       model,  // 传入选择的模型
+      isRegenerate,  // 标记是否是重新生成
     }),
     signal: controller.signal,  // 绑定 AbortSignal
   })
@@ -375,28 +377,32 @@ export function useChatStream() {
 
   /**
    * regenerate - 重新生成 AI 回复
-   * 找到最后一条用户消息，删除从该消息开始的所有后续消息，然后重新发送
+   * 找到最后一条 AI 消息，删除它，然后重新发送最后一条用户消息
    */
   const regenerate = useCallback(async () => {
-    const { messages, deleteMessagesFrom, addMessage } = useChatStore.getState();
+    const { messages, deleteMessage, addMessage } = useChatStore.getState();
     
-    // 找到最后一条用户消息
-    let lastUserMessage: Message | null = null;
+    // 找到最后一条 AI 消息
+    let lastAIMessageIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'user') {
-        lastUserMessage = messages[i];
+      if (messages[i].role === 'assistant') {
+        lastAIMessageIndex = i;
         break;
       }
     }
     
-    if (!lastUserMessage) return;
+    // 如果没有 AI 消息，直接返回
+    if (lastAIMessageIndex === -1) return;
     
-    // 删除从该用户消息开始的所有后续消息
-    deleteMessagesFrom(lastUserMessage.id);
+    // 删除最后一条 AI 消息
+    const aiMessageId = messages[lastAIMessageIndex].id;
+    deleteMessage(aiMessageId);
     
-    // 重新发送该用户消息
-    // 注意：这里需要手动调用 sendMessage，但它会添加新的用户消息
-    // 所以我们直接调用 sendToBackend
+    // 找到对应的用户消息（AI 消息前一条）
+    const lastUserMessage = messages[lastAIMessageIndex - 1];
+    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
+    
+    // 重新发送
     const currentSession = getCurrentSession();
     const conversationId = currentSession?.id?.startsWith('session_') ? null : (currentSession?.id || null);
     const isNewLocalSession = currentSession?.id?.startsWith('session_');
@@ -452,7 +458,8 @@ export function useChatStream() {
         setStreamRate(0);
         setMessageStatus(aiMessage.id, 'error', error.message);
         setLoading(false);
-      }
+      },
+      true  // isRegenerate = true，不重复保存用户消息
     );
   }, [getCurrentSession, setLoading, setStatus, setStreamRate, setMessageStatus]);
 

@@ -133,15 +133,8 @@ export function AppSidebar() {
         .eq('user_id', currentUser.id)
         .order('updated_at', { ascending: false });
 
-      const currentState = useSessionStore.getState();
-      const localSessions = currentState.sessions;
-      const currentLocalId = currentState.currentSessionId;
-
-      const dbSessionIds = new Set(conversations?.map((c) => c.id) || []);
-      const localOnlySessions = localSessions.filter(
-        (s) => !s.id.startsWith('uuid') && !dbSessionIds.has(s.id)
-      );
-
+      // 登录用户：只从数据库加载会话，清空本地缓存的会话
+      // 这样可以确保数据库清空后，本地也不会显示旧数据
       if (conversations && conversations.length > 0) {
         const dbSessions = await Promise.all(
           conversations.map(async (conv) => {
@@ -167,31 +160,31 @@ export function AppSidebar() {
           })
         );
 
-        const mergedSessions = [...dbSessions, ...localOnlySessions];
-        
-        let finalCurrentId: string | null;
-        if (currentLocalId && localOnlySessions.some((s) => s.id === currentLocalId)) {
-          finalCurrentId = currentLocalId;
-        } else {
-          finalCurrentId = dbSessions[0]?.id || localOnlySessions[0]?.id || null;
-        }
+        // 只使用数据库会话，不使用本地缓存
+        const finalCurrentId = dbSessions[0]?.id || null;
 
         useSessionStore.setState({
-          sessions: mergedSessions,
+          sessions: dbSessions,
           currentSessionId: finalCurrentId,
         });
 
-        const currentSession = mergedSessions.find((s) => s.id === finalCurrentId);
-        setMessages(currentSession?.messages || []);
-      } else if (localOnlySessions.length > 0) {
+        // 只在当前没有消息时才设置消息（避免覆盖正在进行的聊天）
+        const currentChatMessages = useChatStore.getState().messages;
+        if (currentChatMessages.length === 0) {
+          const currentSession = dbSessions.find((s) => s.id === finalCurrentId);
+          setMessages(currentSession?.messages || []);
+        }
+      } else {
+        // 数据库为空，清空本地会话
         useSessionStore.setState({
-          sessions: localOnlySessions,
-          currentSessionId: currentLocalId || localOnlySessions[0].id,
+          sessions: [],
+          currentSessionId: null,
         });
-        const currentSession = localOnlySessions.find(
-          (s) => s.id === (currentLocalId || localOnlySessions[0].id)
-        );
-        setMessages(currentSession?.messages || []);
+        // 只在当前没有消息时才清空消息
+        const currentChatMessages = useChatStore.getState().messages;
+        if (currentChatMessages.length === 0) {
+          setMessages([]);
+        }
       }
     };
 
@@ -211,11 +204,13 @@ export function AppSidebar() {
   // Handlers
   const handleCreateSession = useCallback(() => {
     const name = newChatName.trim() || undefined;
-    createSession(name);
+    const newSession = createSession(name);
     setNewChatName('');
     setIsCreating(false);
     // 导航到新对话页面
-    router.push('/');
+    if (newSession) {
+      router.push(`/chat/${newSession.id}`);
+    }
   }, [createSession, newChatName, router]);
 
   const startRename = useCallback((session: Session) => {
@@ -300,7 +295,7 @@ export function AppSidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 ml-auto opacity-0 group-hover:opacity-100"
+                className="h-7 w-7 ml-auto opacity-0 group-hover:opacity-100 group-data-[collapsible=icon]:hidden"
                 onClick={(e) => e.stopPropagation()}
               >
                 <ChevronDown className="h-3 w-3" />
@@ -330,17 +325,15 @@ export function AppSidebar() {
       {/* Header */}
       <SidebarHeader>
         {/* Toggle + Logo */}
-        <div className="flex items-center gap-1 px-1">
-          <SidebarTrigger />
-          <SidebarMenu className="flex-1">
+        <div className="flex items-center gap-1 px-1 group-data-[collapsible=icon]:justify-center">
+          <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
+          <SidebarMenu className="flex-1 group-data-[collapsible=icon]:flex-none">
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
+              <SidebarMenuButton size="lg" asChild tooltip="AI Chat">
                 <Link href="/">
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
-                      AI
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-semibold shrink-0">
+                    AI
+                  </div>
                   <div className="flex flex-col gap-0.5 leading-none">
                     <span className="font-semibold">AI Chat</span>
                     <span className="text-xs text-muted-foreground">AI Assistant</span>
@@ -353,7 +346,7 @@ export function AppSidebar() {
 
         {/* Action Buttons */}
         {isCreating ? (
-          <div className="flex gap-2 p-2">
+          <div className="flex gap-2 p-2 group-data-[collapsible=icon]:hidden">
             <Input
               value={newChatName}
               onChange={(e) => setNewChatName(e.target.value)}
@@ -387,9 +380,10 @@ export function AppSidebar() {
             {user && sessions.length > 0 && (
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm('Delete all chats? This cannot be undone.')) {
-                      sessions.forEach(s => deleteSession(s.id));
+                      // 使用 Promise.all 等待所有删除完成
+                      await Promise.all(sessions.map(s => deleteSession(s.id)));
                     }
                   }}
                   tooltip="Delete all"
@@ -408,25 +402,23 @@ export function AppSidebar() {
       {/* Chat List with Groups */}
       <SidebarContent>
         {!user ? (
-          // 未登录状态：显示临时会话提示
-          <div className="px-4 py-6">
-            <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-              <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-              <p className="text-sm font-medium text-muted-foreground mb-1">
+          // 未登录状态：显示临时会话提示（紧凑版）
+          <div className="px-2 py-3 group-data-[collapsible=icon]:hidden">
+            <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-2 text-center">
+              <Clock className="mx-auto h-5 w-5 text-muted-foreground mb-1" />
+              <p className="text-xs font-medium text-muted-foreground">
                 Temporary Session
               </p>
-              <p className="text-xs text-muted-foreground/80">
-                Your chats are stored in memory only and will be lost when you refresh or close the page.
+              <p className="text-[10px] text-muted-foreground/80 mt-0.5">
+                Chats will be lost on refresh
               </p>
-              <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/20">
-                <p className="text-xs text-muted-foreground mb-2">
-                  🔒 Sign in to save your chat history permanently
-                </p>
-              </div>
+              <p className="text-[10px] text-muted-foreground/60 mt-1">
+                🔒 Sign in to save
+              </p>
             </div>
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8 text-sm px-2">
+          <div className="text-center text-muted-foreground py-8 text-sm px-2 group-data-[collapsible=icon]:hidden">
             No chats yet. Start a new conversation!
           </div>
         ) : (
@@ -490,26 +482,26 @@ export function AppSidebar() {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild disabled={!user}>
+              <SidebarMenuButton asChild disabled={!user} tooltip="Settings / Roles">
                 <Link href={user ? "/settings" : "#"}>
                   <Settings className="h-4 w-4" />
                   <span>Settings / Roles</span>
-                  {!user && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                  {!user && <Lock className="h-3 w-3 ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden" />}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton disabled>
+              <SidebarMenuButton disabled tooltip="Knowledge Base">
                 <Database className="h-4 w-4" />
                 <span>Knowledge Base</span>
-                <Badge variant="outline" className="ml-auto">Soon</Badge>
+                <Badge variant="outline" className="ml-auto group-data-[collapsible=icon]:hidden">Soon</Badge>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton disabled>
+              <SidebarMenuButton disabled tooltip="Tool Calls">
                 <Zap className="h-4 w-4" />
                 <span>Tool Calls</span>
-                <Badge variant="outline" className="ml-auto">Soon</Badge>
+                <Badge variant="outline" className="ml-auto group-data-[collapsible=icon]:hidden">Soon</Badge>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -523,13 +515,13 @@ export function AppSidebar() {
             <LoginButton />
           </SidebarMenuItem>
           {!user && (
-            <SidebarMenuItem className="px-2 py-1">
+            <SidebarMenuItem className="px-2 py-1 group-data-[collapsible=icon]:hidden">
               <p className="text-xs text-muted-foreground text-center">
                 🔒 Sign in to sync your chats
               </p>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem className="text-xs text-muted-foreground text-center">
+          <SidebarMenuItem className="text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
             {sessions.length} chat{sessions.length !== 1 ? 's' : ''}
             {!user && sessions.length > 0 && ' (local)'}
           </SidebarMenuItem>

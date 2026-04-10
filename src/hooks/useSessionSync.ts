@@ -45,11 +45,29 @@ export function useSessionSync() {
         addMessageToCurrentSession(msg);
       }
 
-      // 检测更新的消息
+      // 检测更新的消息（内容或状态变化）
       for (const msg of chatMessages) {
         const existingMsg = sessionMessages.find((m: Message) => m.id === msg.id);
-        if (existingMsg && existingMsg.content !== msg.content) {
+        if (existingMsg && (
+          existingMsg.content !== msg.content || 
+          existingMsg.status !== msg.status
+        )) {
           updateMessageInCurrentSession(msg.id, msg);
+        }
+      }
+    }
+    // 即使消息数量不变，也检查状态变化（用于流完成后更新状态）
+    else if (chatMessages.length === prevMessagesLengthRef.current && chatMessages.length > 0) {
+      const currentSession = sessions.find((s: any) => s.id === currentSessionId);
+      if (currentSession) {
+        const sessionMessages = currentSession.messages;
+        
+        // 检测状态变化
+        for (const msg of chatMessages) {
+          const existingMsg = sessionMessages.find((m: Message) => m.id === msg.id);
+          if (existingMsg && existingMsg.status !== msg.status) {
+            updateMessageInCurrentSession(msg.id, msg);
+          }
         }
       }
     }
