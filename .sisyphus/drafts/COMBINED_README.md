@@ -204,14 +204,10 @@ Phase 3 (工程化):         ░░░░░░░░░░   0%
 - [x] 支持 6 个模型（glm-5/qwen-plus/qwen-max/qwen-coder-plus/deepseek-r1/deepseek-v3）
 - [x] 数据流：ModelSelector → chatStore → API → 百炼
 
-#### Step 5: Artifact Panel 完善 + Sidebar 未登录优化 ✅ 完成
+#### Step 5: Artifact Panel 完善 + Sidebar 优化
 - [x] 完善 Artifact Panel 交互
-- [x] Sidebar 未登录状态优化（临时会话提示、历史隐藏）
-- [x] 未登录用户会话机制（不持久化到 localStorage）
-- [x] 响应式布局优化（Sidebar 默认折叠）
-- [x] 重新生成消息重复问题修复
-- [x] 数据库清空后本地同步修复
-- [x] AI 消息状态同步修复
+- [x] Sidebar 未登录状态优化
+- [x] 响应式布局优化
 - [ ] 添加代码复制功能
 - [ ] 添加文件类型标签
 
@@ -356,10 +352,9 @@ docker-compose up --build
 
 ## 🚧 当前阻塞点
 
-1. **百炼 API 测试** - baseUrl 已修复为 `coding.dashscope.aliyuncs.com/v1`，待验证
-2. **工具调用未跑通** - `streamAI_WithTools` 存在但 API 层未调用
-3. **多模态不支持** - ChatMessage 只有 `content: string`
+1. **工具调用未跑通** - `streamAI_WithTools` 存在但 API 层未调用
+2. **多模态不支持** - ChatMessage 只有 `content: string`
 
 ---
 
-*最后更新: 2026-04-08*
+*最后更新: 2026-04-10*
